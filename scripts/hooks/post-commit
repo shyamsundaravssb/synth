@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Synth post-commit hook
+# Installed by 'synth init'. Calls synth _post-commit to
+# backfill commit hashes on intent records.
+#
+# RULE: This hook must NEVER fail a Git operation.
+# If synth is not found or errors, exit 0 silently.
+
+set -uo pipefail
+
+# If synth binary is not on PATH, exit silently.
+if ! command -v synth &> /dev/null; then
+    exit 0
+fi
+
+# If .synth/config.toml does not exist, exit silently.
+if [ ! -f ".synth/config.toml" ]; then
+    exit 0
+fi
+
+# Call synth _post-commit with the commit hash.
+synth _post-commit --hash="$(git rev-parse HEAD)" --quiet 2>/dev/null || true
+
+exit 0
