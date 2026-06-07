@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestWritePID_CreatesFile(t *testing.T) {
@@ -183,5 +185,181 @@ func TestIsDaemonRunning_RunningProcess(t *testing.T) {
 	}
 	if pid != os.Getpid() {
 		t.Fatalf("expected pid %d, got %d", os.Getpid(), pid)
+	}
+}
+
+func TestDaemonRun_WritesPIDFile(t *testing.T) {
+	d := New()
+	d.PIDFile = filepath.Join(t.TempDir(), "daemon.pid")
+	d.LogFile = filepath.Join(t.TempDir(), "daemon.log")
+
+	go func() {
+		_ = d.Run()
+	}()
+
+	// Give it 200ms to start
+	time.Sleep(200 * time.Millisecond)
+
+	data, err := os.ReadFile(d.PIDFile)
+	if err != nil {
+		t.Fatalf("expected PID file to exist, got %v", err)
+	}
+
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatalf("expected valid integer in PID file, got %v", err)
+	}
+	if pid != os.Getpid() {
+		t.Fatalf("expected pid %d, got %d", os.Getpid(), pid)
+	}
+
+	_ = d.Shutdown()
+}
+
+func TestDaemonRun_RemovesPIDOnExit(t *testing.T) {
+	d := New()
+	d.PIDFile = filepath.Join(t.TempDir(), "daemon.pid")
+	d.LogFile = filepath.Join(t.TempDir(), "daemon.log")
+
+	go func() {
+		_ = d.Run()
+	}()
+
+	// Give it 200ms to start
+	time.Sleep(200 * time.Millisecond)
+
+	_, err := os.Stat(d.PIDFile)
+	if err != nil {
+		t.Fatalf("expected PID file to exist, got %v", err)
+	}
+
+	_ = d.Shutdown()
+
+	select {
+	case <-d.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected done channel to close within 2 seconds")
+	}
+
+	_, err = os.Stat(d.PIDFile)
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected PID file to not exist, got %v", err)
+	}
+}
+
+func TestDaemonShutdown_Idempotent(t *testing.T) {
+	d := New()
+	d.PIDFile = filepath.Join(t.TempDir(), "daemon.pid")
+	d.LogFile = filepath.Join(t.TempDir(), "daemon.log")
+
+	go func() {
+		_ = d.Run()
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	err1 := d.Shutdown()
+	err2 := d.Shutdown()
+
+	if err1 != nil || err2 != nil {
+		t.Fatalf("expected no errors from Shutdown, got %v, %v", err1, err2)
+	}
+
+	select {
+	case <-d.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected clean exit")
+	}
+}
+
+func TestDaemonShutdown_CompletesWithinTimeout(t *testing.T) {
+	d := New()
+	d.PIDFile = filepath.Join(t.TempDir(), "daemon.pid")
+	d.LogFile = filepath.Join(t.TempDir(), "daemon.log")
+
+	go func() {
+		_ = d.Run()
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	start := time.Now()
+	_ = d.Shutdown()
+	elapsed := time.Since(start)
+
+	if elapsed > 2*time.Second {
+		t.Fatalf("expected Shutdown to complete in <2s, took %v", elapsed)
+	}
+}
+
+func TestAppendToLog_CreatesFile(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "daemon.log")
+	message := "test message"
+	
+	err := appendToLog(logFile, message, 123)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("expected file to exist, got %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, message) {
+		t.Fatalf("expected message in log file, got %q", content)
+	}
+	if !strings.Contains(content, "pid=123") {
+		t.Fatalf("expected pid=123 in log file, got %q", content)
+	}
+}
+
+func TestAppendToLog_AppendsMultipleLines(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "daemon.log")
+	
+	_ = appendToLog(logFile, "msg1", 1)
+	_ = appendToLog(logFile, "msg2", 2)
+
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("expected file to exist, got %v", err)
+	}
+
+	content := string(data)
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 lines, got %d", len(lines))
+	}
+	if !strings.Contains(lines[0], "msg1") || !strings.Contains(lines[1], "msg2") {
+		t.Fatalf("expected messages on separate lines, got %q", content)
+	}
+}
+
+func TestShutdownCh_ClosedAfterShutdown(t *testing.T) {
+	d := New()
+	d.PIDFile = filepath.Join(t.TempDir(), "daemon.pid")
+	d.LogFile = filepath.Join(t.TempDir(), "daemon.log")
+
+	go func() {
+		_ = d.Run()
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	select {
+	case <-d.ShutdownCh():
+		t.Fatal("expected ShutdownCh to be open initially")
+	default:
+		// expected
+	}
+
+	_ = d.Shutdown()
+
+	select {
+	case <-d.ShutdownCh():
+		// expected
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected ShutdownCh to be closed within 2 seconds")
 	}
 }

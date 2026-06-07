@@ -21,7 +21,7 @@ CGO_ENABLED := 1
 # Targets
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-.PHONY: build build-all test test-coverage lint install clean dev help
+.PHONY: build build-all test test-coverage lint lint-install install clean dev help
 
 ## build: Build the synth binary for the current platform.
 build:
@@ -59,6 +59,12 @@ lint:
 	@echo "→ Running linters..."
 	golangci-lint run ./...
 	@echo "✓ Lint passed"
+
+## lint-install: Install golangci-lint.
+lint-install:
+	@echo "→ Installing golangci-lint..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "✓ Installed golangci-lint"
 
 ## install: Build and install to GOPATH/bin.
 install:

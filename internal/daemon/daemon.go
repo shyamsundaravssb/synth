@@ -10,6 +10,9 @@ import (
 	"syscall"
 
 	"github.com/adrg/xdg"
+	"os/signal"
+	"sync"
+	"time"
 )
 
 var ErrDaemonNotRunning = errors.New("daemon is not running")
@@ -97,20 +100,83 @@ func IsDaemonRunning(pidFile string) (bool, int, error) {
 }
 
 type Daemon struct {
-	PIDFile  string
-	SockFile string
-	LogFile  string
+	PIDFile      string
+	SockFile     string
+	LogFile      string
+	shutdownCh   chan struct{}
+	done         chan struct{}
+	shutdownOnce sync.Once
 }
 
 func New() *Daemon {
 	return &Daemon{
-		PIDFile:  PIDFile,
-		SockFile: SockFile,
-		LogFile:  LogFile,
+		PIDFile:    PIDFile,
+		SockFile:   SockFile,
+		LogFile:    LogFile,
+		shutdownCh: make(chan struct{}),
+		done:       make(chan struct{}),
 	}
 }
 
 func (d *Daemon) Run() error {
-	_, _ = fmt.Fprintln(os.Stderr, "synth daemon: started (pid:", os.Getpid(), ")")
-	select {}
+	err := WritePID(d.PIDFile)
+	if err != nil {
+		return fmt.Errorf("failed to write PID: %w", err)
+	}
+
+	defer func() {
+		_ = RemovePID(d.PIDFile)
+		close(d.done)
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigCh)
+
+	_ = appendToLog(d.LogFile, "daemon started", os.Getpid())
+
+	for {
+		select {
+		case sig := <-sigCh:
+			_ = appendToLog(d.LogFile, fmt.Sprintf("received signal: %s", sig), os.Getpid())
+			return d.Shutdown()
+		case <-d.shutdownCh:
+			return nil
+		}
+	}
+}
+
+func (d *Daemon) Shutdown() error {
+	_ = appendToLog(d.LogFile, "daemon shutting down", os.Getpid())
+
+	d.shutdownOnce.Do(func() {
+		close(d.shutdownCh)
+	})
+
+	select {
+	case <-d.done:
+		// clean exit
+	case <-time.After(5 * time.Second):
+		// forced exit after timeout
+		_ = appendToLog(d.LogFile, "shutdown timeout — forcing exit", os.Getpid())
+	}
+
+	return nil
+}
+
+func appendToLog(logFile, message string, pid int) error {
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	ts := time.Now().UTC().Format(time.RFC3339)
+	line := fmt.Sprintf("%s pid=%d msg=%q\n", ts, pid, message)
+	_, err = f.WriteString(line)
+	return err
+}
+
+func (d *Daemon) ShutdownCh() <-chan struct{} {
+	return d.shutdownCh
 }
