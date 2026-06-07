@@ -92,7 +92,9 @@ func IsDaemonRunning(pidFile string) (bool, int, error) {
 		return true, pid, nil
 	}
 
-	RemovePID(pidFile)
+	if err := RemovePID(pidFile); err != nil {
+		// Ignore removal errors here, just proceed
+	}
 	return false, 0, nil
 }
 
@@ -111,6 +113,6 @@ func New() *Daemon {
 }
 
 func (d *Daemon) Run() error {
-	fmt.Fprintln(os.Stderr, "synth daemon: started (pid:", os.Getpid(), ")")
+	_, _ = fmt.Fprintln(os.Stderr, "synth daemon: started (pid:", os.Getpid(), ")")
 	select {}
 }

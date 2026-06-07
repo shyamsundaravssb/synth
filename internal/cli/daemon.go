@@ -74,15 +74,15 @@ func newDaemonStatusCmd() *cobra.Command {
 					"log":    daemon.LogFile,
 				}
 				out, _ := json.Marshal(data)
-				fmt.Println(string(out))
+				_, _ = fmt.Println(string(out))
 			} else {
 				if running {
-					fmt.Printf("● Synth daemon  ·  running  ·  pid %d\n", pid)
-					fmt.Printf("· socket: %s\n", daemon.SockFile)
-					fmt.Printf("· log:    %s\n", daemon.LogFile)
+					_, _ = fmt.Printf("● Synth daemon  ·  running  ·  pid %d\n", pid)
+					_, _ = fmt.Printf("· socket: %s\n", daemon.SockFile)
+					_, _ = fmt.Printf("· log:    %s\n", daemon.LogFile)
 				} else {
-					fmt.Println("○ Synth daemon  ·  stopped")
-					fmt.Println("· Start with: synth daemon start")
+					_, _ = fmt.Println("○ Synth daemon  ·  stopped")
+					_, _ = fmt.Println("· Start with: synth daemon start")
 				}
 			}
 			
