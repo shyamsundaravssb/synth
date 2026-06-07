@@ -92,9 +92,7 @@ func IsDaemonRunning(pidFile string) (bool, int, error) {
 		return true, pid, nil
 	}
 
-	if err := RemovePID(pidFile); err != nil {
-		// Ignore removal errors here, just proceed
-	}
+	_ = RemovePID(pidFile)
 	return false, 0, nil
 }
 
