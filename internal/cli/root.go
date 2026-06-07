@@ -30,6 +30,7 @@ development smarter.`,
 	cmd.AddCommand(newLogCmd())
 	cmd.AddCommand(newStatusCmd())
 	cmd.AddCommand(newPostCommitCmd())
+	cmd.AddCommand(newDaemonCmd())
 
 	return cmd
 }
