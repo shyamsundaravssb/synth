@@ -54,11 +54,30 @@ jobs:
 
   build:
     name: Build Matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        goos: [linux, darwin]
-        goarch: [amd64, arm64]
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo_enabled: 1
+            cc: gcc
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cgo_enabled: 1
+            cc: aarch64-linux-gnu-gcc
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            cgo_enabled: 0
+            cc: ""
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            cgo_enabled: 0
+            cc: ""
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,9 +88,16 @@ jobs:
           go-version: '1.22'
           cache: true
 
+      - name: Install ARM64 cross-compiler
+        if: matrix.goarch == 'arm64' && matrix.goos == 'linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: ${{ matrix.cgo_enabled }}
+          CC: ${{ matrix.cc }}
         run: go build -trimpath -o /dev/null ./cmd/synth
