@@ -11,10 +11,10 @@ linters:
     - gosimple
     - ineffassign
     - typecheck
-  disable:
-    - deadcode
-    - varcheck
-    - structcheck
+
+output:
+  formats:
+    - format: colored-line-number
 
 linters-settings:
   errcheck:

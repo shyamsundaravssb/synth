@@ -41,15 +41,18 @@ func RunMigrations(db *sql.DB) error {
 	return nil
 }
 
-// applyMigration runs a single migration inside a transaction.
 func applyMigration(db *sql.DB, m Migration) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin migration %d: %w", m.Version, err)
 	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			_ = err
+		}
+	}()
 
 	if _, err := tx.Exec(m.SQL); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("exec migration %d (%s): %w", m.Version, m.Description, err)
 	}
 
@@ -57,7 +60,6 @@ func applyMigration(db *sql.DB, m Migration) error {
 		"INSERT INTO schema_migrations (version, applied_at, description) VALUES (?, ?, ?)",
 		m.Version, time.Now().UnixMilli(), m.Description,
 	); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("record migration %d: %w", m.Version, err)
 	}
 
