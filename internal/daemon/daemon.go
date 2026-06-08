@@ -141,7 +141,11 @@ func (d *Daemon) Run() error {
 		select {
 		case sig := <-sigCh:
 			d.log.Info("received signal: " + sig.String())
-			go d.Shutdown()
+			go func() {
+				if err := d.Shutdown(); err != nil {
+					d.log.Error("shutdown failed", err.Error())
+				}
+			}()
 			return nil
 		case <-d.shutdownCh:
 			return nil
