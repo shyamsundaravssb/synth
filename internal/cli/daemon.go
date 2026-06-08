@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/shyamsundaravssb/synth/internal/daemon"
 	"github.com/shyamsundaravssb/synth/internal/ui"
@@ -31,13 +34,10 @@ func newDaemonStartCmd() *cobra.Command {
 		Use:   "start",
 		Short: "Start the Synth daemon",
 		Run: func(cmd *cobra.Command, args []string) {
-			running, pid, _ := daemon.IsDaemonRunning(daemon.PIDFile)
-			if running {
-				ui.ShowError("daemon is already running (pid: " + strconv.Itoa(pid) + ")")
+			if err := runDaemonStart(); err != nil {
+				ui.ShowError(err.Error())
 				os.Exit(1)
 			}
-			ui.ShowInfo("daemon start: not yet implemented")
-			os.Exit(0)
 		},
 	}
 }
@@ -47,8 +47,10 @@ func newDaemonStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop the Synth daemon",
 		Run: func(cmd *cobra.Command, args []string) {
-			ui.ShowInfo("daemon stop: not yet implemented")
-			os.Exit(0)
+			if err := runDaemonStop(); err != nil {
+				ui.ShowError(err.Error())
+				os.Exit(1)
+			}
 		},
 	}
 }
@@ -103,8 +105,100 @@ func newDaemonRestartCmd() *cobra.Command {
 		Use:   "restart",
 		Short: "Restart the Synth daemon",
 		Run: func(cmd *cobra.Command, args []string) {
-			ui.ShowInfo("daemon restart: not yet implemented")
-			os.Exit(0)
+			if err := runDaemonRestart(); err != nil {
+				ui.ShowError(err.Error())
+				os.Exit(1)
+			}
 		},
 	}
+}
+
+func runDaemonStart() error {
+	running, pid, err := daemon.IsDaemonRunning(daemon.PIDFile)
+	if err != nil {
+		return fmt.Errorf("failed to check daemon status: %w", err)
+	}
+	if running {
+		ui.ShowError("daemon is already running (pid: " + strconv.Itoa(pid) + ")")
+		return nil
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("cannot find executable: %w", err)
+	}
+
+	cmd := exec.Command(execPath, "--daemon-child")
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start daemon: %w", err)
+	}
+
+	_ = cmd.Process.Release()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		running, pid, err = daemon.IsDaemonRunning(daemon.PIDFile)
+		if err == nil && running {
+			ui.ShowSuccess("daemon started  ·  pid " + strconv.Itoa(pid))
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return fmt.Errorf("daemon did not start within 3 seconds — check log: %s", daemon.LogFile)
+}
+
+func runDaemonStop() error {
+	running, pid, err := daemon.IsDaemonRunning(daemon.PIDFile)
+	if err != nil {
+		return err
+	}
+	if !running {
+		ui.ShowInfo("daemon is not running")
+		return nil
+	}
+
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("cannot find process %d: %w", pid, err)
+	}
+
+	err = process.Signal(syscall.SIGTERM)
+	if err != nil {
+		return fmt.Errorf("failed to send SIGTERM to pid %d: %w", pid, err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		running, _, _ = daemon.IsDaemonRunning(daemon.PIDFile)
+		if !running {
+			ui.ShowSuccess("daemon stopped")
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	_ = process.Signal(syscall.SIGKILL)
+	_ = daemon.RemovePID(daemon.PIDFile)
+	ui.ShowSuccess("daemon stopped (forced)")
+	return nil
+}
+
+func runDaemonRestart() error {
+	err := runDaemonStop()
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	return runDaemonStart()
 }

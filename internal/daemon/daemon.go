@@ -141,7 +141,8 @@ func (d *Daemon) Run() error {
 		select {
 		case sig := <-sigCh:
 			d.log.Info("received signal: " + sig.String())
-			return d.Shutdown()
+			go d.Shutdown()
+			return nil
 		case <-d.shutdownCh:
 			return nil
 		}
