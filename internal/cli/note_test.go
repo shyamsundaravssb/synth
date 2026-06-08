@@ -480,7 +480,7 @@ func TestNoteExistingFile_WritesToDatabase(t *testing.T) {
 	if len(intents) != 2 {
 		t.Fatalf("expected 2 intents, got %d", len(intents))
 	}
-	
+
 	var changeIntent *types.Intent
 	for i := range intents {
 		if intents[i].Type == types.IntentChange {

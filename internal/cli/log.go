@@ -241,7 +241,7 @@ func runStatus() error {
 	if err != nil {
 		return fmt.Errorf("could not list all intents: %w", err)
 	}
-	
+
 	// WAIT: the instruction says "(get all for summary building)", but wait, if Limit: 0 means 20, I should set limit to -1.
 	// Oh, I will just set Limit to a very large number or fix ListIntents.
 	// In intents.go: "if limit <= 0 { limit = 20 }". So Limit: 0 defaults to 20. Limit: -1 also defaults to 20!

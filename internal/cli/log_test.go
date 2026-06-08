@@ -15,7 +15,7 @@ func TestParseSince_MinutesAgo(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	expected := now.Add(-30 * time.Minute)
-	
+
 	// Check within 1 second tolerance
 	if parsed.Before(expected.Add(-1*time.Second)) || parsed.After(expected.Add(1*time.Second)) {
 		t.Errorf("parsed = %v, want approx %v", parsed, expected)

@@ -122,7 +122,7 @@ func (s *SQLiteStore) UpdateUncommittedIntents(ctx context.Context, projectID, c
 	if err != nil {
 		return 0, err
 	}
-	
+
 	rows, err := res.RowsAffected()
 	return int(rows), err
 }

@@ -915,7 +915,7 @@ func TestUpdateUncommittedIntents_InStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	countNewHash := 0
 	for _, in := range intents {
 		if in.CommitHash == "newhash" {

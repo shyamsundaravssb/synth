@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/spf13/cobra"
 	"github.com/shyamsundaravssb/synth/internal/daemon"
 	"github.com/shyamsundaravssb/synth/internal/ui"
+	"github.com/spf13/cobra"
 )
 
 func newDaemonCmd() *cobra.Command {
@@ -61,7 +61,7 @@ func newDaemonStatusCmd() *cobra.Command {
 		Short: "Show daemon status",
 		Run: func(cmd *cobra.Command, args []string) {
 			running, pid, _ := daemon.IsDaemonRunning(daemon.PIDFile)
-			
+
 			if jsonOutput {
 				status := "stopped"
 				if running {
@@ -85,7 +85,7 @@ func newDaemonStatusCmd() *cobra.Command {
 					_, _ = fmt.Println("· Start with: synth daemon start")
 				}
 			}
-			
+
 			if running {
 				os.Exit(0)
 			} else {
@@ -93,7 +93,7 @@ func newDaemonStatusCmd() *cobra.Command {
 			}
 		},
 	}
-	
+
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 	return cmd
 }

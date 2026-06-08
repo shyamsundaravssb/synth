@@ -106,6 +106,7 @@ type Daemon struct {
 	shutdownCh   chan struct{}
 	done         chan struct{}
 	shutdownOnce sync.Once
+	log          *Logger
 }
 
 func New() *Daemon {
@@ -115,6 +116,7 @@ func New() *Daemon {
 		LogFile:    LogFile,
 		shutdownCh: make(chan struct{}),
 		done:       make(chan struct{}),
+		log:        NewLogger(LogFile),
 	}
 }
 
@@ -133,12 +135,12 @@ func (d *Daemon) Run() error {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	defer signal.Stop(sigCh)
 
-	_ = appendToLog(d.LogFile, "daemon started", os.Getpid())
+	d.log.Info("daemon started")
 
 	for {
 		select {
 		case sig := <-sigCh:
-			_ = appendToLog(d.LogFile, fmt.Sprintf("received signal: %s", sig), os.Getpid())
+			d.log.Info("received signal: " + sig.String())
 			return d.Shutdown()
 		case <-d.shutdownCh:
 			return nil
@@ -147,7 +149,7 @@ func (d *Daemon) Run() error {
 }
 
 func (d *Daemon) Shutdown() error {
-	_ = appendToLog(d.LogFile, "daemon shutting down", os.Getpid())
+	d.log.Info("daemon shutting down")
 
 	d.shutdownOnce.Do(func() {
 		close(d.shutdownCh)
@@ -158,23 +160,10 @@ func (d *Daemon) Shutdown() error {
 		// clean exit
 	case <-time.After(5 * time.Second):
 		// forced exit after timeout
-		_ = appendToLog(d.LogFile, "shutdown timeout — forcing exit", os.Getpid())
+		d.log.Warn("shutdown timeout — forcing exit")
 	}
 
 	return nil
-}
-
-func appendToLog(logFile, message string, pid int) error {
-	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	ts := time.Now().UTC().Format(time.RFC3339)
-	line := fmt.Sprintf("%s pid=%d msg=%q\n", ts, pid, message)
-	_, err = f.WriteString(line)
-	return err
 }
 
 func (d *Daemon) ShutdownCh() <-chan struct{} {

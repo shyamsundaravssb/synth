@@ -25,12 +25,12 @@ const (
 
 // StatusData contains all information needed to render a project status view.
 type StatusData struct {
-	ProjectName    string
-	Developer      string
-	TotalNotes     int
-	FilesWithNotes []FileNoteSummary
+	ProjectName     string
+	Developer       string
+	TotalNotes      int
+	FilesWithNotes  []FileNoteSummary
 	LowContextFiles []string
-	LastNote       *types.Intent // nil if no notes yet
+	LastNote        *types.Intent // nil if no notes yet
 }
 
 // FileNoteSummary summarizes notes for a single file.

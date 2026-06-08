@@ -144,12 +144,12 @@ func runNoteInteractive(fileFlag string, quick bool, whatFlag, whyFlag string) e
 		if whatFlag != "" && whyFlag != "" {
 			branch, _ := git.GetCurrentBranch(gitRoot)
 			diff, _ := git.GetFileDiff(gitRoot, relPath)
-			
+
 			var impact string
 			if diff != "" {
 				impact = "[diff captured]"
 			}
-			
+
 			return saveExistingFileNote(ctx, synthStore, cfg, relPath, branch, whatFlag, whyFlag, impact)
 		}
 

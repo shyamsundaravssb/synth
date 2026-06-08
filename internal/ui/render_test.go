@@ -199,12 +199,12 @@ func TestRenderIntentJSON_NilSlice(t *testing.T) {
 
 func TestRenderStatus_NoNotes(t *testing.T) {
 	status := StatusData{
-		ProjectName:    "synth",
-		Developer:      "alice",
-		TotalNotes:     0,
-		FilesWithNotes: nil,
+		ProjectName:     "synth",
+		Developer:       "alice",
+		TotalNotes:      0,
+		FilesWithNotes:  nil,
 		LowContextFiles: nil,
-		LastNote:       nil,
+		LastNote:        nil,
 	}
 
 	output := captureStdout(t, func() {
@@ -238,7 +238,7 @@ func TestRenderStatus_WithNotes(t *testing.T) {
 			{FilePath: "store.go", NoteCount: 1},
 		},
 		LowContextFiles: []string{"config.go"},
-		LastNote:         lastNote,
+		LastNote:        lastNote,
 	}
 
 	output := captureStdout(t, func() {

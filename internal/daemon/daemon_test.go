@@ -63,7 +63,7 @@ func TestReadPID_ReadsCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
-	
+
 	pid, err := ReadPID(pidFile)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -151,7 +151,7 @@ func TestIsDaemonRunning_StalePIDFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
-	
+
 	running, pid, err := IsDaemonRunning(pidFile)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -162,7 +162,7 @@ func TestIsDaemonRunning_StalePIDFile(t *testing.T) {
 	if pid != 0 {
 		t.Fatalf("expected pid 0, got %d", pid)
 	}
-	
+
 	_, err = os.Stat(pidFile)
 	if !os.IsNotExist(err) {
 		t.Fatalf("expected stale PID file to be removed")
@@ -175,7 +175,7 @@ func TestIsDaemonRunning_RunningProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup failed: %v", err)
 	}
-	
+
 	running, pid, err := IsDaemonRunning(pidFile)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -289,50 +289,6 @@ func TestDaemonShutdown_CompletesWithinTimeout(t *testing.T) {
 
 	if elapsed > 2*time.Second {
 		t.Fatalf("expected Shutdown to complete in <2s, took %v", elapsed)
-	}
-}
-
-func TestAppendToLog_CreatesFile(t *testing.T) {
-	logFile := filepath.Join(t.TempDir(), "daemon.log")
-	message := "test message"
-	
-	err := appendToLog(logFile, message, 123)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	data, err := os.ReadFile(logFile)
-	if err != nil {
-		t.Fatalf("expected file to exist, got %v", err)
-	}
-
-	content := string(data)
-	if !strings.Contains(content, message) {
-		t.Fatalf("expected message in log file, got %q", content)
-	}
-	if !strings.Contains(content, "pid=123") {
-		t.Fatalf("expected pid=123 in log file, got %q", content)
-	}
-}
-
-func TestAppendToLog_AppendsMultipleLines(t *testing.T) {
-	logFile := filepath.Join(t.TempDir(), "daemon.log")
-	
-	_ = appendToLog(logFile, "msg1", 1)
-	_ = appendToLog(logFile, "msg2", 2)
-
-	data, err := os.ReadFile(logFile)
-	if err != nil {
-		t.Fatalf("expected file to exist, got %v", err)
-	}
-
-	content := string(data)
-	lines := strings.Split(strings.TrimSpace(content), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("expected 2 lines, got %d", len(lines))
-	}
-	if !strings.Contains(lines[0], "msg1") || !strings.Contains(lines[1], "msg2") {
-		t.Fatalf("expected messages on separate lines, got %q", content)
 	}
 }
 
