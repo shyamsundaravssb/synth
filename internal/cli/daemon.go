@@ -25,6 +25,8 @@ func newDaemonCmd() *cobra.Command {
 	daemonCmd.AddCommand(newDaemonStopCmd())
 	daemonCmd.AddCommand(newDaemonStatusCmd())
 	daemonCmd.AddCommand(newDaemonRestartCmd())
+	daemonCmd.AddCommand(newDaemonInstallServiceCmd())
+	daemonCmd.AddCommand(newDaemonUninstallServiceCmd())
 
 	return daemonCmd
 }
@@ -109,6 +111,53 @@ func newDaemonRestartCmd() *cobra.Command {
 				ui.ShowError(err.Error())
 				os.Exit(1)
 			}
+		},
+	}
+}
+
+func newDaemonInstallServiceCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "install-service",
+		Short: "Install Synth daemon as a system service",
+		Long: "Installs a launchd service (macOS) or systemd user service (Linux) " +
+			"so the Synth daemon starts automatically on login and restarts on crash.",
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			ui.ShowInfo("installing Synth daemon service...")
+			if err := daemon.InstallService(); err != nil {
+				ui.ShowError("failed to install service: " + err.Error())
+				os.Exit(1)
+			}
+			ui.ShowSuccess("service installed")
+
+			if daemon.CurrentPlatform() == "linux" {
+				ui.ShowInfo("start now with: systemctl --user start synth-daemon.service")
+				ui.ShowInfo("check status with: systemctl --user status synth-daemon.service")
+			} else if daemon.CurrentPlatform() == "darwin" {
+				ui.ShowInfo("the service will start automatically on next login")
+				ui.ShowInfo("start now with: synth daemon start")
+			}
+		},
+	}
+}
+
+func newDaemonUninstallServiceCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "uninstall-service",
+		Short: "Remove the Synth daemon system service",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			running, _, _ := daemon.IsDaemonRunning(daemon.PIDFile)
+			if running {
+				ui.ShowInfo("stopping daemon before uninstalling service...")
+				_ = runDaemonStop()
+			}
+
+			if err := daemon.UninstallService(); err != nil {
+				ui.ShowError("failed to uninstall service: " + err.Error())
+				os.Exit(1)
+			}
+			ui.ShowSuccess("service uninstalled")
 		},
 	}
 }
