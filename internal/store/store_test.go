@@ -926,3 +926,45 @@ func TestUpdateUncommittedIntents_InStore(t *testing.T) {
 		t.Errorf("expected 3 intents with 'newhash', got %d", countNewHash)
 	}
 }
+
+func TestRecordFileSave_InsertsRecord(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "record_file.db")
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open DB: %v", err)
+	}
+	defer db.Close()
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations failed: %v", err)
+	}
+
+	s := NewSQLiteStore(db)
+	ctx := context.Background()
+
+	err = s.RecordFileSave(ctx, "proj1", "main.go", false)
+	if err != nil {
+		t.Fatalf("RecordFileSave failed: %v", err)
+	}
+
+	err = s.RecordFileSave(ctx, "proj1", "utils.go", true)
+	if err != nil {
+		t.Fatalf("RecordFileSave failed: %v", err)
+	}
+
+	var hasNote int
+	err = db.QueryRow("SELECT has_note FROM file_saves WHERE file_path = 'main.go'").Scan(&hasNote)
+	if err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if hasNote != 0 {
+		t.Errorf("expected main.go has_note to be 0, got %d", hasNote)
+	}
+
+	err = db.QueryRow("SELECT has_note FROM file_saves WHERE file_path = 'utils.go'").Scan(&hasNote)
+	if err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+	if hasNote != 1 {
+		t.Errorf("expected utils.go has_note to be 1, got %d", hasNote)
+	}
+}

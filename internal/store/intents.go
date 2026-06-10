@@ -31,6 +31,7 @@ type Store interface {
 	CountIntents(ctx context.Context, projectID string) (int, error)
 	GetLowContextFiles(ctx context.Context, projectID string, threshold int) ([]string, error)
 	UpdateUncommittedIntents(ctx context.Context, projectID, commitHash string) (int, error)
+	RecordFileSave(ctx context.Context, projectID, filePath string, hasNote bool) error
 }
 
 // SQLiteStore implements Store backed by a SQLite database.
@@ -265,6 +266,29 @@ func (s *SQLiteStore) GetLowContextFiles(ctx context.Context, projectID string, 
 		files = append(files, f)
 	}
 	return files, rows.Err()
+}
+
+// RecordFileSave inserts a save event record into file_saves.
+func (s *SQLiteStore) RecordFileSave(ctx context.Context, projectID, filePath string, hasNote bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	noteVal := 0
+	if hasNote {
+		noteVal = 1
+	}
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO file_saves
+		 (file_path, project_id, saved_at, has_note)
+		 VALUES (?, ?, ?, ?)`,
+		filePath,
+		projectID,
+		time.Now().UnixMilli(),
+		noteVal,
+	)
+	return err
 }
 
 // scanIntents reads intent rows into a slice. It handles nullable

@@ -10,7 +10,10 @@ import (
 	"syscall"
 
 	"github.com/adrg/xdg"
+	"github.com/shyamsundaravssb/synth/internal/config"
+	"github.com/shyamsundaravssb/synth/internal/git"
 	"github.com/shyamsundaravssb/synth/internal/ipc"
+	"github.com/shyamsundaravssb/synth/internal/store"
 	"os/signal"
 	"sync"
 	"time"
@@ -109,6 +112,7 @@ type Daemon struct {
 	shutdownOnce sync.Once
 	log          *Logger
 	ipcServer    *ipc.Server
+	watcher      *Watcher
 }
 
 func New() *Daemon {
@@ -146,6 +150,30 @@ func (d *Daemon) Run() error {
 	if err := d.ipcServer.Start(); err != nil {
 		d.log.Error("failed to start IPC server", err.Error())
 		return err
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		if gitRoot, err := git.FindGitRoot(cwd); err != nil {
+			d.log.Warn("no git repository found — file watching disabled")
+		} else {
+			if cfg, err := config.LoadProjectConfig(gitRoot); err != nil {
+				d.log.Warn("no synth config found — file watching disabled")
+			} else {
+				if db, err := store.Open(store.DBPath(cfg.Project.ID)); err != nil {
+					d.log.Error("failed to open store for watcher", err.Error())
+				} else {
+					synthStore := store.NewSQLiteStore(db)
+					d.watcher, err = NewWatcher(gitRoot, cfg.Project.ID, synthStore, d.log, d.ShutdownCh())
+					if err != nil {
+						d.log.Error("failed to create watcher", err.Error())
+					} else {
+						if err := d.watcher.Start(); err != nil {
+							d.log.Error("failed to start watcher", err.Error())
+						}
+					}
+				}
+			}
+		}
 	}
 
 	for {
