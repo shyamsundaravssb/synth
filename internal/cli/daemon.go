@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shyamsundaravssb/synth/internal/daemon"
+	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"github.com/shyamsundaravssb/synth/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -65,6 +66,17 @@ func newDaemonStatusCmd() *cobra.Command {
 		Short: "Show daemon status",
 		Run: func(cmd *cobra.Command, args []string) {
 			running, pid, _ := daemon.IsDaemonRunning(daemon.PIDFile)
+
+			if running {
+				client := ipc.NewClient(daemon.SockFile)
+				pingData, pingErr := client.Ping()
+
+				if pingErr == nil && pingData != nil {
+					pid = pingData.PID
+				} else {
+					_, _ = fmt.Fprintln(os.Stderr, "synth daemon: warning: daemon process running but IPC not yet ready")
+				}
+			}
 
 			if jsonOutput {
 				status := "stopped"

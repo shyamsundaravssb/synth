@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/adrg/xdg"
+	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"os/signal"
 	"sync"
 	"time"
@@ -107,6 +108,7 @@ type Daemon struct {
 	done         chan struct{}
 	shutdownOnce sync.Once
 	log          *Logger
+	ipcServer    *ipc.Server
 }
 
 func New() *Daemon {
@@ -136,6 +138,15 @@ func (d *Daemon) Run() error {
 	defer signal.Stop(sigCh)
 
 	d.log.Info("daemon started")
+
+	d.ipcServer = ipc.NewServer(d.SockFile, d.ShutdownCh(), d.log)
+	d.ipcServer.Handle(ipc.TypePing, d.handlePing)
+	d.ipcServer.Handle(ipc.TypeStatus, d.handleStatus)
+
+	if err := d.ipcServer.Start(); err != nil {
+		d.log.Error("failed to start IPC server", err.Error())
+		return err
+	}
 
 	for {
 		select {
@@ -173,4 +184,22 @@ func (d *Daemon) Shutdown() error {
 
 func (d *Daemon) ShutdownCh() <-chan struct{} {
 	return d.shutdownCh
+}
+
+func (d *Daemon) handlePing(req *ipc.Request) *ipc.Response {
+	resp, _ := ipc.NewOKResponse(ipc.PingData{
+		PID:     os.Getpid(),
+		Version: "0.1.0",
+	})
+	return resp
+}
+
+func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
+	resp, _ := ipc.NewOKResponse(ipc.StatusData{
+		Running:  true,
+		PID:      os.Getpid(),
+		LogFile:  d.LogFile,
+		SockFile: d.SockFile,
+	})
+	return resp
 }
