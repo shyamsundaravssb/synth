@@ -32,6 +32,7 @@ type Store interface {
 	GetLowContextFiles(ctx context.Context, projectID string, threshold int) ([]string, error)
 	UpdateUncommittedIntents(ctx context.Context, projectID, commitHash string) (int, error)
 	RecordFileSave(ctx context.Context, projectID, filePath string, hasNote bool) error
+	CountFileSaves(ctx context.Context, projectID string) (int, error)
 }
 
 // SQLiteStore implements Store backed by a SQLite database.
@@ -289,6 +290,20 @@ func (s *SQLiteStore) RecordFileSave(ctx context.Context, projectID, filePath st
 		noteVal,
 	)
 	return err
+}
+
+// CountFileSaves returns the total number of file saves for a project.
+func (s *SQLiteStore) CountFileSaves(ctx context.Context, projectID string) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM file_saves WHERE project_id = ?`,
+		projectID,
+	).Scan(&count)
+	return count, err
 }
 
 // scanIntents reads intent rows into a slice. It handles nullable

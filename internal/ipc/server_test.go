@@ -56,6 +56,51 @@ func TestServerClient_PingHandler(t *testing.T) {
 	}
 }
 
+func TestServerClient_StatusHandler(t *testing.T) {
+	server, sockPath, _ := setupServer(t)
+
+	server.Handle(TypeStatus, func(req *Request) *Response {
+		data, _ := NewOKResponse(StatusData{
+			Running:        true,
+			PID:            999,
+			UptimeS:        42,
+			NotesCount:     5,
+			FileSavesCount: 10,
+		})
+		return data
+	})
+
+	client := NewClient(sockPath)
+	req, _ := NewRequest(TypeStatus, StatusPayload{})
+	
+	resp, err := client.Send(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	sd, err := ParseStatusData(resp)
+	if err != nil {
+		t.Fatalf("failed to parse status data: %v", err)
+	}
+
+	if !sd.Running {
+		t.Errorf("expected Running true, got false")
+	}
+	if sd.PID != 999 {
+		t.Errorf("expected PID 999, got %d", sd.PID)
+	}
+	if sd.UptimeS != 42 {
+		t.Errorf("expected UptimeS 42, got %d", sd.UptimeS)
+	}
+	if sd.NotesCount != 5 {
+		t.Errorf("expected NotesCount 5, got %d", sd.NotesCount)
+	}
+	if sd.FileSavesCount != 10 {
+		t.Errorf("expected FileSavesCount 10, got %d", sd.FileSavesCount)
+	}
+}
+
+
 func TestServerClient_UnknownType(t *testing.T) {
 	_, sockPath, _ := setupServer(t)
 

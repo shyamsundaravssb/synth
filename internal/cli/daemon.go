@@ -26,6 +26,7 @@ func newDaemonCmd() *cobra.Command {
 	daemonCmd.AddCommand(newDaemonStopCmd())
 	daemonCmd.AddCommand(newDaemonStatusCmd())
 	daemonCmd.AddCommand(newDaemonRestartCmd())
+	daemonCmd.AddCommand(newDaemonPingCmd())
 	daemonCmd.AddCommand(newDaemonInstallServiceCmd())
 	daemonCmd.AddCommand(newDaemonUninstallServiceCmd())
 
@@ -66,15 +67,18 @@ func newDaemonStatusCmd() *cobra.Command {
 		Short: "Show daemon status",
 		Run: func(cmd *cobra.Command, args []string) {
 			running, pid, _ := daemon.IsDaemonRunning(daemon.PIDFile)
+			var statusData *ipc.StatusData
 
 			if running {
 				client := ipc.NewClient(daemon.SockFile)
-				pingData, pingErr := client.Ping()
-
-				if pingErr == nil && pingData != nil {
-					pid = pingData.PID
-				} else {
-					_, _ = fmt.Fprintln(os.Stderr, "synth daemon: warning: daemon process running but IPC not yet ready")
+				req, _ := ipc.NewRequest(ipc.TypeStatus, ipc.StatusPayload{})
+				resp, err := client.Send(req)
+				if err == nil && resp.Status == ipc.StatusOK {
+					sd, parseErr := ipc.ParseStatusData(resp)
+					if parseErr == nil {
+						statusData = sd
+						pid = sd.PID
+					}
 				}
 			}
 
@@ -89,13 +93,23 @@ func newDaemonStatusCmd() *cobra.Command {
 					"socket": daemon.SockFile,
 					"log":    daemon.LogFile,
 				}
+				if statusData != nil {
+					data["uptime_seconds"] = statusData.UptimeS
+					data["notes_count"] = statusData.NotesCount
+					data["file_saves_count"] = statusData.FileSavesCount
+				}
 				out, _ := json.Marshal(data)
 				_, _ = fmt.Println(string(out))
 			} else {
 				if running {
 					_, _ = fmt.Printf("● Synth daemon  ·  running  ·  pid %d\n", pid)
-					_, _ = fmt.Printf("· socket: %s\n", daemon.SockFile)
-					_, _ = fmt.Printf("· log:    %s\n", daemon.LogFile)
+					if statusData != nil {
+						_, _ = fmt.Printf("· uptime:      %d seconds\n", statusData.UptimeS)
+						_, _ = fmt.Printf("· notes:       %d intent notes\n", statusData.NotesCount)
+						_, _ = fmt.Printf("· file saves:  %d saves tracked\n", statusData.FileSavesCount)
+					}
+					_, _ = fmt.Printf("· socket:      %s\n", daemon.SockFile)
+					_, _ = fmt.Printf("· log:         %s\n", daemon.LogFile)
 				} else {
 					_, _ = fmt.Println("○ Synth daemon  ·  stopped")
 					_, _ = fmt.Println("· Start with: synth daemon start")
@@ -262,4 +276,46 @@ func runDaemonRestart() error {
 	time.Sleep(200 * time.Millisecond)
 
 	return runDaemonStart()
+}
+
+func newDaemonPingCmd() *cobra.Command {
+	var jsonOutput bool
+
+	cmd := &cobra.Command{
+		Use:   "ping",
+		Short: "Ping the Synth daemon",
+		Long:  "Send a ping to the running daemon and report the round-trip time.",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			client := ipc.NewClient(daemon.SockFile)
+
+			start := time.Now()
+			pingData, err := client.Ping()
+			elapsed := time.Since(start)
+
+			if err != nil {
+				ui.ShowError("daemon is not reachable: " + err.Error())
+				ui.ShowInfo("start the daemon with: synth daemon start")
+				os.Exit(1)
+			}
+
+			if jsonOutput {
+				data := map[string]interface{}{
+					"status":     "ok",
+					"pid":        pingData.PID,
+					"version":    pingData.Version,
+					"elapsed_ms": elapsed.Milliseconds(),
+				}
+				out, _ := json.Marshal(data)
+				_, _ = fmt.Println(string(out))
+			} else {
+				_, _ = fmt.Printf("● pong  ·  pid %d  ·  %dms\n", pingData.PID, elapsed.Milliseconds())
+				_, _ = fmt.Printf("· version: %s\n", pingData.Version)
+			}
+			os.Exit(0)
+		},
+	}
+
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
+	return cmd
 }

@@ -968,3 +968,32 @@ func TestRecordFileSave_InsertsRecord(t *testing.T) {
 		t.Errorf("expected utils.go has_note to be 1, got %d", hasNote)
 	}
 }
+
+func TestCountFileSaves_ReturnsCorrectCount(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "count_file.db")
+	db, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open DB: %v", err)
+	}
+	defer db.Close()
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations failed: %v", err)
+	}
+
+	s := NewSQLiteStore(db)
+	ctx := context.Background()
+
+	s.RecordFileSave(ctx, "proj1", "main.go", false)
+	s.RecordFileSave(ctx, "proj1", "utils.go", false)
+	s.RecordFileSave(ctx, "proj1", "app.go", true)
+	s.RecordFileSave(ctx, "proj2", "main.go", false)
+
+	count, err := s.CountFileSaves(ctx, "proj1")
+	if err != nil {
+		t.Fatalf("CountFileSaves failed: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 file saves for proj1, got %d", count)
+	}
+}
+

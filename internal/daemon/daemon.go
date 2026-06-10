@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -113,6 +114,9 @@ type Daemon struct {
 	log          *Logger
 	ipcServer    *ipc.Server
 	watcher      *Watcher
+	startTime    time.Time
+	synthStore   store.Store
+	projectID    string
 }
 
 func New() *Daemon {
@@ -131,6 +135,7 @@ func (d *Daemon) Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to write PID: %w", err)
 	}
+	d.startTime = time.Now()
 
 	defer func() {
 		_ = RemovePID(d.PIDFile)
@@ -163,6 +168,8 @@ func (d *Daemon) Run() error {
 					d.log.Error("failed to open store for watcher", err.Error())
 				} else {
 					synthStore := store.NewSQLiteStore(db)
+					d.synthStore = synthStore
+					d.projectID = cfg.Project.ID
 					d.watcher, err = NewWatcher(gitRoot, cfg.Project.ID, synthStore, d.log, d.ShutdownCh())
 					if err != nil {
 						d.log.Error("failed to create watcher", err.Error())
@@ -223,11 +230,28 @@ func (d *Daemon) handlePing(req *ipc.Request) *ipc.Response {
 }
 
 func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
-	resp, _ := ipc.NewOKResponse(ipc.StatusData{
-		Running:  true,
-		PID:      os.Getpid(),
-		LogFile:  d.LogFile,
-		SockFile: d.SockFile,
-	})
+	ctx := context.Background()
+	notesCount := 0
+	fileSavesCount := 0
+
+	if d.synthStore != nil && d.projectID != "" {
+		if c, err := d.synthStore.CountIntents(ctx, d.projectID); err == nil {
+			notesCount = c
+		}
+		if sc, err := d.synthStore.CountFileSaves(ctx, d.projectID); err == nil {
+			fileSavesCount = sc
+		}
+	}
+
+	data := ipc.StatusData{
+		Running:        true,
+		PID:            os.Getpid(),
+		UptimeS:        int64(time.Since(d.startTime).Seconds()),
+		NotesCount:     notesCount,
+		FileSavesCount: fileSavesCount,
+		LogFile:        d.LogFile,
+		SockFile:       d.SockFile,
+	}
+	resp, _ := ipc.NewOKResponse(data)
 	return resp
 }
