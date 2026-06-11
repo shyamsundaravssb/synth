@@ -48,11 +48,8 @@ test:
 
 ## test-coverage: Run tests with coverage report.
 test-coverage:
-	@echo "→ Running tests with coverage..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=$(CGO_ENABLED) go test ./... -v -count=1 -coverprofile=$(BUILD_DIR)/coverage.out
-	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
-	@echo "✓ Coverage report: $(BUILD_DIR)/coverage.html"
+	go test ./... -coverprofile=coverage.out
+	go tool cover -func=coverage.out
 
 ## lint: Run linters (requires golangci-lint).
 lint:
