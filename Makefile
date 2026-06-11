@@ -48,8 +48,10 @@ test:
 
 ## test-coverage: Run tests with coverage report.
 test-coverage:
-	go test ./... -coverprofile=coverage.out
+	@echo "→ Running tests with coverage..."
+	CGO_ENABLED=$(CGO_ENABLED) go test ./... -coverprofile=coverage.out
 	go tool cover -func=coverage.out
+	@echo "✓ Coverage report complete"
 
 ## lint: Run linters (requires golangci-lint).
 lint:
