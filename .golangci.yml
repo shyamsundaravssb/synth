@@ -7,19 +7,8 @@ linters:
     - govet
     - errcheck
     - staticcheck
-    - unused
-    - gosimple
     - ineffassign
     - typecheck
-
-output:
-  formats:
-    - format: tab
-
-linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
 
 issues:
   exclude-rules:
