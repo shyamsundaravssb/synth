@@ -14,7 +14,7 @@ linters:
 
 output:
   formats:
-    - format: colored-line-number
+    - format: tab
 
 linters-settings:
   errcheck:
