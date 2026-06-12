@@ -34,7 +34,7 @@ func Open(dbPath string) (retDB *sql.DB, retErr error) {
 	// Ensure cleanup on any subsequent error.
 	defer func() {
 		if retErr != nil {
-			db.Close()
+			_ = db.Close()
 		}
 	}()
 

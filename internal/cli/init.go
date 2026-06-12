@@ -131,7 +131,7 @@ func runInit(gitRoot, projectName, developerName string, addToGitignore bool) er
 
 	// From this point, any failure must clean up .synth/.
 	cleanup := func() {
-		os.RemoveAll(synthDir)
+		_ = os.RemoveAll(synthDir)
 	}
 
 	// Step 8 — Write .synth/config.toml.

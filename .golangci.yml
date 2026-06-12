@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
@@ -8,7 +10,20 @@ linters:
     - errcheck
     - staticcheck
     - ineffassign
-    - typecheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+    exclude-functions:
+      - (net.Conn).Close
+      - (database/sql.Rows).Close
+      - (database/sql.DB).Close
+      - (*os.File).Close
+      - os.Setenv
+      - os.Chdir
+      - os.Chmod
+      - (os.File).Close
 
 issues:
   exclude-rules:

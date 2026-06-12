@@ -86,7 +86,7 @@ func (s *Server) acceptLoop() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	defer func() { <-s.connLimit }()
 
 	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))

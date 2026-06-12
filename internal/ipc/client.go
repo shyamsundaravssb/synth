@@ -24,7 +24,7 @@ func (c *Client) Send(req *Request) (*Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to daemon socket: %w — is the daemon running?", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_ = conn.SetDeadline(time.Now().Add(c.timeout))
 

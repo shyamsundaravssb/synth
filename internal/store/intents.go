@@ -178,7 +178,7 @@ func (s *SQLiteStore) ListIntents(ctx context.Context, filter IntentFilter) ([]t
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	return scanIntents(rows)
 }
@@ -256,7 +256,7 @@ func (s *SQLiteStore) GetLowContextFiles(ctx context.Context, projectID string, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var files []string
 	for rows.Next() {
