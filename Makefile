@@ -62,7 +62,7 @@ lint:
 ## lint-install: Install golangci-lint.
 lint-install:
 	@echo "→ Installing golangci-lint..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
 	@echo "✓ Installed golangci-lint"
 
 ## install: Build and install to GOPATH/bin.

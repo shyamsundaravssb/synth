@@ -139,7 +139,7 @@ func runLog(all bool, file, branch, developer, since string, asJSON bool, limit 
 	if err != nil {
 		return fmt.Errorf("could not open database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	synthStore := store.NewSQLiteStore(db)
 	ctx := context.Background()
@@ -215,7 +215,7 @@ func runStatus() error {
 	if err != nil {
 		return fmt.Errorf("could not open database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	synthStore := store.NewSQLiteStore(db)
 	ctx := context.Background()

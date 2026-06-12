@@ -166,7 +166,7 @@ func runInit(gitRoot, projectName, developerName string, addToGitignore bool) er
 		cleanup()
 		return err
 	}
-	db.Close()
+	_ = db.Close()
 
 	// Step 10 — Install git hook.
 	if err := git.InstallPostCommitHook(gitRoot); err != nil {

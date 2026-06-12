@@ -56,7 +56,7 @@ func runPostCommit(hash string, quiet bool) error {
 	if err != nil {
 		return nil
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	synthStore := store.NewSQLiteStore(db)
 	ctx := context.Background()

@@ -127,7 +127,7 @@ func runNoteInteractive(fileFlag string, quick bool, whatFlag, whyFlag string) e
 		ui.ShowError("could not open database: " + err.Error())
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	synthStore := store.NewSQLiteStore(db)
 	ctx := context.Background()
