@@ -381,3 +381,38 @@ func TestMigration002_FTSTrigger_OnInsert(t *testing.T) {
 		t.Errorf("FTS returned intent_id %q, want %q", intentID, "trigger-test")
 	}
 }
+
+// ─── TestCountEmbeddings ─────────────────────────────────────────────────────
+
+func TestCountEmbeddings(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	// Insert 3 intents.
+	for i := 0; i < 3; i++ {
+		in := makeIntent(fmt.Sprintf("ce-%d", i), "proj-1", "file.go")
+		if err := s.InsertIntent(ctx, in); err != nil {
+			t.Fatalf("InsertIntent() error = %v", err)
+		}
+	}
+
+	// Insert embeddings for first 2 intents.
+	for i := 0; i < 2; i++ {
+		if err := s.InsertEmbedding(ctx, EmbeddingRecord{
+			IntentID:  fmt.Sprintf("ce-%d", i),
+			ProjectID: "proj-1",
+			Embedding: make([]float32, 384),
+			Model:     "test",
+		}); err != nil {
+			t.Fatalf("InsertEmbedding() error = %v", err)
+		}
+	}
+
+	count, err := s.CountEmbeddings(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("CountEmbeddings() error = %v", err)
+	}
+	if count != 2 {
+		t.Errorf("CountEmbeddings() = %d, want 2", count)
+	}
+}

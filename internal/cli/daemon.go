@@ -96,6 +96,7 @@ func newDaemonStatusCmd() *cobra.Command {
 				if statusData != nil {
 					data["uptime_seconds"] = statusData.UptimeS
 					data["notes_count"] = statusData.NotesCount
+					data["embeddings_count"] = statusData.EmbeddingsCount
 					data["file_saves_count"] = statusData.FileSavesCount
 				}
 				out, _ := json.Marshal(data)
@@ -106,6 +107,7 @@ func newDaemonStatusCmd() *cobra.Command {
 					if statusData != nil {
 						_, _ = fmt.Printf("· uptime:      %d seconds\n", statusData.UptimeS)
 						_, _ = fmt.Printf("· notes:       %d intent notes\n", statusData.NotesCount)
+						_, _ = fmt.Printf("· embedded:    %d / %d notes indexed\n", statusData.EmbeddingsCount, statusData.NotesCount)
 						_, _ = fmt.Printf("· file saves:  %d saves tracked\n", statusData.FileSavesCount)
 					}
 					_, _ = fmt.Printf("· socket:      %s\n", daemon.SockFile)

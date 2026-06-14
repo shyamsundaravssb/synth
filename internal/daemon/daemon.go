@@ -248,6 +248,7 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 	ctx := context.Background()
 	notesCount := 0
 	fileSavesCount := 0
+	embeddingsCount := 0
 
 	if d.synthStore != nil && d.projectID != "" {
 		if c, err := d.synthStore.CountIntents(ctx, d.projectID); err == nil {
@@ -256,16 +257,20 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 		if sc, err := d.synthStore.CountFileSaves(ctx, d.projectID); err == nil {
 			fileSavesCount = sc
 		}
+		if ec, err := d.synthStore.CountEmbeddings(ctx, d.projectID); err == nil {
+			embeddingsCount = ec
+		}
 	}
 
 	data := ipc.StatusData{
-		Running:        true,
-		PID:            os.Getpid(),
-		UptimeS:        int64(time.Since(d.startTime).Seconds()),
-		NotesCount:     notesCount,
-		FileSavesCount: fileSavesCount,
-		LogFile:        d.LogFile,
-		SockFile:       d.SockFile,
+		Running:         true,
+		PID:             os.Getpid(),
+		UptimeS:         int64(time.Since(d.startTime).Seconds()),
+		NotesCount:      notesCount,
+		FileSavesCount:  fileSavesCount,
+		EmbeddingsCount: embeddingsCount,
+		LogFile:         d.LogFile,
+		SockFile:        d.SockFile,
 	}
 	resp, _ := ipc.NewOKResponse(data)
 	return resp

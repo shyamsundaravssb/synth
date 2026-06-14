@@ -106,7 +106,7 @@ func (e *Engine) load(ctx context.Context) error {
 	// Step 2 — Create session. Try ORT first; fall back to pure-Go backend.
 	session, err := hugot.NewORTSession(ctx)
 	if err != nil {
-		e.log.Warn("ORT backend unavailable, falling back to Go backend")
+		e.log.Info("ORT backend unavailable, falling back to Go backend")
 		session, err = hugot.NewGoSession(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create hugot session: %w", err)

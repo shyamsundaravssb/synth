@@ -45,6 +45,7 @@ type Store interface {
 
 	// Phase 1: full-text search.
 	SearchFTS(ctx context.Context, projectID, query string, limit int) ([]types.Intent, error)
+	CountEmbeddings(ctx context.Context, projectID string) (int, error)
 }
 
 // SQLiteStore implements Store backed by a SQLite database.

@@ -230,3 +230,19 @@ func (s *SQLiteStore) SearchFTS(
 
 	return scanIntents(rows)
 }
+
+// ─── CountEmbeddings ─────────────────────────────────────────────────────────
+
+// CountEmbeddings returns the total number of embeddings for a project.
+func (s *SQLiteStore) CountEmbeddings(ctx context.Context, projectID string) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM intent_embeddings WHERE project_id = ?`,
+		projectID,
+	).Scan(&count)
+	return count, err
+}

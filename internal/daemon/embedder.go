@@ -23,8 +23,9 @@ type Embedder struct {
 	store      store.Store
 	engine     EmbedEngine
 	projectID  string
-	log        *Logger
-	shutdownCh <-chan struct{}
+	log             *Logger
+	shutdownCh      <-chan struct{}
+	modelWarnLogged bool
 }
 
 func NewEmbedder(
@@ -66,6 +67,10 @@ func (e *Embedder) runLoop() {
 
 func (e *Embedder) embedPending() {
 	if !e.engine.IsModelPresent() {
+		if !e.modelWarnLogged {
+			e.log.Warn("model not present — embeddings disabled. Model should be at: " + embed.DefaultModelDir())
+			e.modelWarnLogged = true
+		}
 		return
 	}
 
