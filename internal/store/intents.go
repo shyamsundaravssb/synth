@@ -33,6 +33,18 @@ type Store interface {
 	UpdateUncommittedIntents(ctx context.Context, projectID, commitHash string) (int, error)
 	RecordFileSave(ctx context.Context, projectID, filePath string, hasNote bool) error
 	CountFileSaves(ctx context.Context, projectID string) (int, error)
+
+	// Phase 1: embedding storage.
+	InsertEmbedding(ctx context.Context, record EmbeddingRecord) error
+	GetEmbedding(ctx context.Context, intentID string) (*EmbeddingRecord, error)
+	ListIntentsWithoutEmbeddings(ctx context.Context, projectID string, limit int) ([]types.Intent, error)
+
+	// Phase 1: daemon state key-value store.
+	GetDaemonState(ctx context.Context, projectID, key string) (string, error)
+	SetDaemonState(ctx context.Context, projectID, key, value string) error
+
+	// Phase 1: full-text search.
+	SearchFTS(ctx context.Context, projectID, query string, limit int) ([]types.Intent, error)
 }
 
 // SQLiteStore implements Store backed by a SQLite database.

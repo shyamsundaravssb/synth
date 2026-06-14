@@ -16,7 +16,16 @@ type Migration struct {
 // migrations is the ordered list of all schema migrations.
 // New migrations are appended here with incrementing version numbers.
 var migrations = []Migration{
-	{Version: 1, Description: "Initial schema", SQL: initialSchemaSQL},
+	{
+		Version:     1,
+		Description: "Initial schema: intents, file_registry, file_saves",
+		SQL:         initialSchemaSQL,
+	},
+	{
+		Version:     2,
+		Description: "Phase 1: intent_embeddings, daemon_state, intents_fts",
+		SQL:         migration002SQL,
+	},
 }
 
 // RunMigrations applies any pending migrations to the database.

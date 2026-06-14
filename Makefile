@@ -14,8 +14,11 @@ LDFLAGS := -ldflags "-s -w \
 	-X main.version=$(VERSION)"
 
 # Go settings.
-GOFLAGS := -trimpath
+GOFLAGS    := -trimpath
 CGO_ENABLED := 1
+# Enable FTS5 in the go-sqlite3 bundled SQLite amalgamation.
+CGO_CFLAGS  := -DSQLITE_ENABLE_FTS5
+CGO_LDFLAGS := -lm
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Targets
@@ -27,7 +30,7 @@ CGO_ENABLED := 1
 build:
 	@echo "→ Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=$(CGO_ENABLED) go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PKG)
+	CGO_ENABLED=$(CGO_ENABLED) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PKG)
 	@echo "✓ Built $(BUILD_DIR)/$(BINARY_NAME)"
 
 ## build-all: Cross-compile for all supported platforms.
@@ -43,13 +46,13 @@ build-all:
 ## test: Run all tests.
 test:
 	@echo "→ Running tests..."
-	CGO_ENABLED=$(CGO_ENABLED) go test ./... -v -count=1
+	CGO_ENABLED=$(CGO_ENABLED) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" go test ./... -v -count=1
 	@echo "✓ Tests passed"
 
 ## test-coverage: Run tests with coverage report.
 test-coverage:
 	@echo "→ Running tests with coverage..."
-	CGO_ENABLED=$(CGO_ENABLED) go test ./... -coverprofile=coverage.out
+	CGO_ENABLED=$(CGO_ENABLED) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" go test ./... -coverprofile=coverage.out
 	go tool cover -func=coverage.out
 	@echo "✓ Coverage report complete"
 
@@ -68,7 +71,7 @@ lint-install:
 ## install: Build and install to GOPATH/bin.
 install:
 	@echo "→ Installing $(BINARY_NAME)..."
-	CGO_ENABLED=$(CGO_ENABLED) go install $(GOFLAGS) $(LDFLAGS) $(MAIN_PKG)
+	CGO_ENABLED=$(CGO_ENABLED) CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" go install $(GOFLAGS) $(LDFLAGS) $(MAIN_PKG)
 	@echo "✓ Installed $(BINARY_NAME)"
 
 ## clean: Remove build artifacts.

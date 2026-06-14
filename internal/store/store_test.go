@@ -317,13 +317,13 @@ func TestRunMigrationsIdempotent(t *testing.T) {
 	}
 	defer db2.Close()
 
-	// Verify exactly one migration entry (no duplicates).
+	// Verify exactly two migration entries (no duplicates).
 	var count int
 	if err := db2.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("counting migrations error = %v", err)
 	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows = %d, want 1", count)
+	if count != 2 {
+		t.Errorf("schema_migrations rows = %d, want 2", count)
 	}
 }
 
@@ -576,13 +576,13 @@ func TestRunMigrationsDirectIdempotent(t *testing.T) {
 		t.Fatalf("RunMigrations() second call error = %v", err)
 	}
 
-	// Verify still exactly one migration entry.
+	// Verify still exactly two migration entries (no duplicates).
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("counting migrations error = %v", err)
 	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows = %d, want 1", count)
+	if count != 2 {
+		t.Errorf("schema_migrations rows = %d, want 2", count)
 	}
 }
 
@@ -638,13 +638,13 @@ func TestOpenFreshDB(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Verify migrations ran and schema_migrations has exactly one entry.
+	// Verify migrations ran and schema_migrations has the latest version.
 	var version int
 	if err := db.QueryRow("SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
 		t.Fatalf("query version error = %v", err)
 	}
-	if version != 1 {
-		t.Errorf("version = %d, want 1", version)
+	if version != 2 {
+		t.Errorf("version = %d, want 2", version)
 	}
 }
 
