@@ -12,6 +12,7 @@ import (
 
 	"github.com/adrg/xdg"
 	"github.com/shyamsundaravssb/synth/internal/config"
+	"github.com/shyamsundaravssb/synth/internal/embed"
 	"github.com/shyamsundaravssb/synth/internal/git"
 	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"github.com/shyamsundaravssb/synth/internal/store"
@@ -114,6 +115,7 @@ type Daemon struct {
 	log          *Logger
 	ipcServer    *ipc.Server
 	watcher      *Watcher
+	embedder     *Embedder
 	startTime    time.Time
 	synthStore   store.Store
 	projectID    string
@@ -181,6 +183,19 @@ func (d *Daemon) Run() error {
 				}
 			}
 		}
+	}
+
+	if d.synthStore != nil {
+		modelDir := embed.DefaultModelDir()
+		embEngine := embed.New(modelDir, d.log)
+		d.embedder = NewEmbedder(
+			d.synthStore,
+			embEngine,
+			d.projectID,
+			d.log,
+			d.ShutdownCh(),
+		)
+		d.embedder.Start()
 	}
 
 	for {
