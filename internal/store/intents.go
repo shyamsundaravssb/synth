@@ -46,6 +46,8 @@ type Store interface {
 	// Phase 1: full-text search.
 	SearchFTS(ctx context.Context, projectID, query string, limit int) ([]types.Intent, error)
 	CountEmbeddings(ctx context.Context, projectID string) (int, error)
+	GetAllEmbeddings(ctx context.Context, projectID string) ([]EmbeddingRecord, error)
+	GetIntentsByIDs(ctx context.Context, ids []string) ([]types.Intent, error)
 }
 
 // SQLiteStore implements Store backed by a SQLite database.
@@ -347,4 +349,48 @@ func scanIntents(rows *sql.Rows) ([]types.Intent, error) {
 		intents = append(intents, i)
 	}
 	return intents, rows.Err()
+}
+
+// GetIntentsByIDs retrieves intents matching the given IDs.
+// Returns the intents in the exact order specified by the ids slice.
+func (s *SQLiteStore) GetIntentsByIDs(ctx context.Context, ids []string) ([]types.Intent, error) {
+	if len(ids) == 0 {
+		return []types.Intent{}, nil
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`SELECT id, project_id, file_path, branch, commit_hash,
+		 developer, timestamp, type, what, why, impact, context
+		 FROM intents
+		 WHERE id IN (%s)`, strings.Join(placeholders, ", "))
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	intents, err := scanIntents(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	intentMap := make(map[string]types.Intent)
+	for _, intent := range intents {
+		intentMap[intent.ID] = intent
+	}
+
+	var ordered []types.Intent
+	for _, id := range ids {
+		if intent, ok := intentMap[id]; ok {
+			ordered = append(ordered, intent)
+		}
+	}
+	return ordered, nil
 }

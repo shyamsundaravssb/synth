@@ -115,10 +115,11 @@ type Daemon struct {
 	log          *Logger
 	ipcServer    *ipc.Server
 	watcher      *Watcher
-	embedder     *Embedder
-	startTime    time.Time
-	synthStore   store.Store
-	projectID    string
+	embedder      *Embedder
+	searchHandler *SearchHandler
+	startTime     time.Time
+	synthStore    store.Store
+	projectID     string
 }
 
 func New() *Daemon {
@@ -196,6 +197,15 @@ func (d *Daemon) Run() error {
 			d.ShutdownCh(),
 		)
 		d.embedder.Start()
+
+		d.searchHandler = NewSearchHandler(
+			d.synthStore,
+			embEngine,
+			d.projectID,
+			d.log,
+		)
+		d.ipcServer.Handle(ipc.TypeSearch, d.searchHandler.Handle)
+		d.log.Info("search handler registered")
 	}
 
 	for {

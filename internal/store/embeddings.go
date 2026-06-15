@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/shyamsundaravssb/synth/pkg/types"
@@ -210,6 +211,8 @@ func (s *SQLiteStore) SearchFTS(
 		limit = 20
 	}
 
+	safeQuery := sanitizeFTSQuery(query)
+
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT i.id, i.project_id, i.file_path,
 		        i.branch, i.commit_hash, i.developer,
@@ -221,7 +224,7 @@ func (s *SQLiteStore) SearchFTS(
 		   AND i.project_id = ?
 		 ORDER BY rank
 		 LIMIT ?`,
-		query, projectID, limit,
+		safeQuery, projectID, limit,
 	)
 	if err != nil {
 		return nil, err
@@ -245,4 +248,57 @@ func (s *SQLiteStore) CountEmbeddings(ctx context.Context, projectID string) (in
 		projectID,
 	).Scan(&count)
 	return count, err
+}
+
+func sanitizeFTSQuery(query string) string {
+	var sb strings.Builder
+	for _, r := range query {
+		switch r {
+		case '"', '\'', '*', '^', '(', ')', '[', ']', '{', '}':
+			continue
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	s := strings.TrimSpace(sb.String())
+	if s == "" {
+		return query
+	}
+	return s
+}
+
+// ─── GetAllEmbeddings ────────────────────────────────────────────────────────
+
+// GetAllEmbeddings retrieves all embedding records for the specified project.
+func (s *SQLiteStore) GetAllEmbeddings(ctx context.Context, projectID string) ([]EmbeddingRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT intent_id, project_id, embedding, model, created_at
+		 FROM intent_embeddings
+		 WHERE project_id = ?`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []EmbeddingRecord
+	for rows.Next() {
+		var rec EmbeddingRecord
+		var blob []byte
+		var createdAtMs int64
+
+		if err := rows.Scan(&rec.IntentID, &rec.ProjectID, &blob, &rec.Model, &createdAtMs); err != nil {
+			return nil, err
+		}
+
+		rec.Embedding = bytesToFloat32Slice(blob)
+		rec.CreatedAt = time.UnixMilli(createdAtMs)
+		results = append(results, rec)
+	}
+	return results, rows.Err()
 }
