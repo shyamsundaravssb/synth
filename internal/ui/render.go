@@ -3,10 +3,12 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/shyamsundaravssb/synth/internal/search"
 	"github.com/shyamsundaravssb/synth/pkg/types"
 )
 
@@ -266,4 +268,163 @@ func relativeTimeFrom(t, now time.Time) string {
 	}
 
 	return t.Format("Jan 2, ") + timeStr
+}
+
+// RenderSearchResults renders search results to stdout.
+func RenderSearchResults(results []search.SearchResult, response *search.SearchResponse, projectName string) {
+	fmt.Println()
+	fmt.Printf("  %sSYNTH SEARCH%s  %s·%s  \"%s%s%s\"  %s·%s  %s\n",
+		ansiBold+ansiWhite, ansiReset,
+		ansiDim, ansiReset,
+		ansiCyan, response.Query, ansiReset,
+		ansiDim, ansiReset,
+		projectName)
+	fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 54), ansiReset)
+
+	if len(results) == 0 {
+		fmt.Printf("  No results found for \"%s\"\n", response.Query)
+		fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 54), ansiReset)
+		fmt.Println()
+		return
+	}
+
+	fmt.Println()
+
+	for _, res := range results {
+		scoreStr := ""
+		scoreColor := ""
+		if response.Mode == search.ModeFTS5 {
+			scoreStr = "keyword match"
+			scoreColor = ansiYellow
+		} else {
+			scorePct := int(math.Round(res.Score * 100))
+			scoreStr = fmt.Sprintf("%d%% match", scorePct)
+			if scorePct >= 70 {
+				scoreColor = ansiGreen
+			} else if scorePct >= 40 {
+				scoreColor = ansiYellow
+			} else {
+				scoreColor = ansiDim
+			}
+		}
+
+		typeColor := intentTypeColor(types.IntentType(res.Type))
+		relTime := RelativeTime(res.Timestamp)
+
+		// File path and score on the right. 54 is the divider width. 2 is left indent. 
+		// "  src/auth.go" has len 2 + len(res.FilePath).
+		padLen := 54 - len(res.FilePath) - len(scoreStr)
+		if padLen < 1 {
+			padLen = 1
+		}
+
+		fmt.Printf("  %s%s%s%s%s%s%s\n",
+			ansiBold+ansiWhite, res.FilePath, ansiReset,
+			strings.Repeat(" ", padLen),
+			scoreColor, scoreStr, ansiReset)
+
+		fmt.Printf("  %s%s%s  %s·%s  %s branch  %s·%s  %s%s%s\n",
+			typeColor, res.Type, ansiReset,
+			ansiDim, ansiReset,
+			res.Branch,
+			ansiDim, ansiReset,
+			ansiDim, relTime, ansiReset)
+
+		if res.What != "" {
+			fmt.Printf("  %sWhat:%s   %s\n", ansiDim, ansiReset, res.What)
+		}
+		if res.Why != "" {
+			fmt.Printf("  %sWhy:%s    %s\n", ansiDim, ansiReset, res.Why)
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 54), ansiReset)
+
+	word := "results"
+	if len(results) == 1 {
+		word = "result"
+	}
+	modeStr := "semantic search"
+	if response.Mode == search.ModeFTS5 {
+		modeStr = "keyword search"
+	}
+	fmt.Printf("  %d %s  %s·%s  %s\n", len(results), word, ansiDim, ansiReset, modeStr)
+
+	if response.IsFallback {
+		fmt.Println()
+		fmt.Printf("  %s⚠  Semantic search unavailable — daemon offline%s\n", ansiYellow, ansiReset)
+		fmt.Printf("     Showing keyword results instead.\n")
+		fmt.Printf("     Start the daemon: synth daemon start\n")
+	}
+
+	fmt.Println()
+}
+
+// searchResultJSON models the JSON output for a single search result.
+type searchResultJSON struct {
+	ID         string  `json:"id"`
+	File       string  `json:"file"`
+	Type       string  `json:"type"`
+	Branch     string  `json:"branch"`
+	Developer  string  `json:"developer"`
+	Timestamp  string  `json:"timestamp"`
+	What       string  `json:"what"`
+	Why        string  `json:"why"`
+	Impact     string  `json:"impact"`
+	Score      float64 `json:"score"`
+	ScorePct   int     `json:"score_pct"`
+	SearchMode string  `json:"search_mode"`
+}
+
+// searchResponseJSON models the full JSON output envelope for a search request.
+type searchResponseJSON struct {
+	Version    int                `json:"version"`
+	Query      string             `json:"query"`
+	Mode       string             `json:"mode"`
+	IsFallback bool               `json:"is_fallback"`
+	Count      int                `json:"count"`
+	Results    []searchResultJSON `json:"results"`
+}
+
+// RenderSearchResultsJSON outputs the search results in JSON format to stdout.
+func RenderSearchResultsJSON(response *search.SearchResponse) error {
+	out := searchResponseJSON{
+		Version:    1,
+		Query:      response.Query,
+		Mode:       string(response.Mode),
+		IsFallback: response.IsFallback,
+		Count:      len(response.Results),
+		Results:    make([]searchResultJSON, len(response.Results)),
+	}
+
+	for i, res := range response.Results {
+		scorePct := int(math.Round(res.Score * 100))
+		if response.Mode == search.ModeFTS5 {
+			scorePct = 0
+		}
+		
+		out.Results[i] = searchResultJSON{
+			ID:         res.ID,
+			File:       res.FilePath,
+			Type:       res.Type,
+			Branch:     res.Branch,
+			Developer:  res.Developer,
+			Timestamp:  res.Timestamp.UTC().Format(time.RFC3339),
+			What:       res.What,
+			Why:        res.Why,
+			Impact:     res.Impact,
+			Score:      res.Score,
+			ScorePct:   scorePct,
+			SearchMode: string(res.Mode),
+		}
+	}
+
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(data))
+	return nil
 }
