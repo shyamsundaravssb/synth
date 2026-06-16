@@ -115,9 +115,11 @@ type Daemon struct {
 	log          *Logger
 	ipcServer    *ipc.Server
 	watcher      *Watcher
-	embedder      *Embedder
-	searchHandler *SearchHandler
-	startTime     time.Time
+	embedder         *Embedder
+	searchHandler    *SearchHandler
+	lowContextScorer *LowContextScorer
+	lowContextLoop   *LowContextLoop
+	startTime        time.Time
 	synthStore    store.Store
 	projectID     string
 }
@@ -160,6 +162,7 @@ func (d *Daemon) Run() error {
 		return err
 	}
 
+	var projCfg *config.ProjectConfig
 	if cwd, err := os.Getwd(); err == nil {
 		if gitRoot, err := git.FindGitRoot(cwd); err != nil {
 			d.log.Warn("no git repository found — file watching disabled")
@@ -167,6 +170,7 @@ func (d *Daemon) Run() error {
 			if cfg, err := config.LoadProjectConfig(gitRoot); err != nil {
 				d.log.Warn("no synth config found — file watching disabled")
 			} else {
+				projCfg = cfg
 				if db, err := store.Open(store.DBPath(cfg.Project.ID)); err != nil {
 					d.log.Error("failed to open store for watcher", err.Error())
 				} else {
@@ -206,6 +210,23 @@ func (d *Daemon) Run() error {
 		)
 		d.ipcServer.Handle(ipc.TypeSearch, d.searchHandler.Handle)
 		d.log.Info("search handler registered")
+
+		threshold := 5
+		if projCfg != nil {
+			threshold = projCfg.Behavior.LowContextThreshold
+		}
+		d.lowContextScorer = NewLowContextScorer(
+			d.synthStore,
+			d.projectID,
+			threshold,
+			d.log,
+		)
+		d.lowContextLoop = NewLowContextLoop(
+			d.lowContextScorer,
+			d.log,
+			d.ShutdownCh(),
+		)
+		d.lowContextLoop.Start()
 	}
 
 	for {
@@ -259,6 +280,7 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 	notesCount := 0
 	fileSavesCount := 0
 	embeddingsCount := 0
+	lowContextCount := 0
 
 	if d.synthStore != nil && d.projectID != "" {
 		if c, err := d.synthStore.CountIntents(ctx, d.projectID); err == nil {
@@ -270,6 +292,11 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 		if ec, err := d.synthStore.CountEmbeddings(ctx, d.projectID); err == nil {
 			embeddingsCount = ec
 		}
+		if d.lowContextScorer != nil {
+			if cached, err := d.lowContextScorer.LoadCachedResults(ctx); err == nil {
+				lowContextCount = len(cached)
+			}
+		}
 	}
 
 	data := ipc.StatusData{
@@ -279,6 +306,7 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 		NotesCount:      notesCount,
 		FileSavesCount:  fileSavesCount,
 		EmbeddingsCount: embeddingsCount,
+		LowContextCount: lowContextCount,
 		LogFile:         d.LogFile,
 		SockFile:        d.SockFile,
 	}

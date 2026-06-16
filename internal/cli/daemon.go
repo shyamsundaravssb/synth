@@ -98,6 +98,7 @@ func newDaemonStatusCmd() *cobra.Command {
 					data["notes_count"] = statusData.NotesCount
 					data["embeddings_count"] = statusData.EmbeddingsCount
 					data["file_saves_count"] = statusData.FileSavesCount
+					data["low_context_count"] = statusData.LowContextCount
 				}
 				out, _ := json.Marshal(data)
 				_, _ = fmt.Println(string(out))
@@ -109,6 +110,7 @@ func newDaemonStatusCmd() *cobra.Command {
 						_, _ = fmt.Printf("· notes:       %d intent notes\n", statusData.NotesCount)
 						_, _ = fmt.Printf("· embedded:    %d / %d notes indexed\n", statusData.EmbeddingsCount, statusData.NotesCount)
 						_, _ = fmt.Printf("· file saves:  %d saves tracked\n", statusData.FileSavesCount)
+						_, _ = fmt.Printf("· low context: %d files need attention\n", statusData.LowContextCount)
 					}
 					_, _ = fmt.Printf("· socket:      %s\n", daemon.SockFile)
 					_, _ = fmt.Printf("· log:         %s\n", daemon.LogFile)

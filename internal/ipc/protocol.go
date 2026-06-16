@@ -72,6 +72,7 @@ type StatusData struct {
 	NotesCount      int    `json:"notes_count"`
 	FileSavesCount  int    `json:"file_saves_count"`
 	EmbeddingsCount int    `json:"embeddings_count"`
+	LowContextCount int    `json:"low_context_count"`
 	LogFile         string `json:"log_file"`
 	SockFile        string `json:"socket_file"`
 }
