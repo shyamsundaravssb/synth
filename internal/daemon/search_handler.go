@@ -10,6 +10,8 @@ import (
 	"github.com/shyamsundaravssb/synth/internal/store"
 )
 
+const MinSemanticScore = 0.05
+
 func cosineSimilarity(a, b []float32) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return 0.0
@@ -87,6 +89,14 @@ func (h *SearchHandler) Handle(req *ipc.Request) *ipc.Response {
 			score: sim,
 		})
 	}
+
+	filteredScores := make([]scoredID, 0)
+	for _, s := range scores {
+		if s.score >= MinSemanticScore {
+			filteredScores = append(filteredScores, s)
+		}
+	}
+	scores = filteredScores
 
 	sort.Slice(scores, func(i, j int) bool {
 		return scores[i].score > scores[j].score

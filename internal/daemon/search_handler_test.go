@@ -112,6 +112,7 @@ func TestSearchHandler_ReturnsRankedResults(t *testing.T) {
 		{ID: "iA", ProjectID: "proj_123", FilePath: "a.go", Type: "change", Context: "normal", What: "intent A", Timestamp: time.Now()},
 		{ID: "iB", ProjectID: "proj_123", FilePath: "b.go", Type: "change", Context: "normal", What: "intent B", Timestamp: time.Now()},
 		{ID: "iC", ProjectID: "proj_123", FilePath: "c.go", Type: "change", Context: "normal", What: "intent C", Timestamp: time.Now()},
+		{ID: "iD", ProjectID: "proj_123", FilePath: "d.go", Type: "change", Context: "normal", What: "intent D", Timestamp: time.Now()},
 	}
 
 	for _, intent := range intents {
@@ -124,15 +125,21 @@ func TestSearchHandler_ReturnsRankedResults(t *testing.T) {
 	vecA[0] = 1.0
 
 	vecB := make([]float32, 384)
-	vecB[1] = 1.0
+	vecB[0] = 0.1
+	vecB[1] = 0.9
 
 	vecC := make([]float32, 384)
 	vecC[0] = 0.9
 	vecC[1] = 0.1
 
+	vecD := make([]float32, 384)
+	vecD[0] = 0.01
+	vecD[1] = 1.0 // Make it mostly orthogonal so cosine similarity is ~0.01
+
 	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "iA", ProjectID: "proj_123", Embedding: vecA, Model: "test"})
 	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "iB", ProjectID: "proj_123", Embedding: vecB, Model: "test"})
 	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "iC", ProjectID: "proj_123", Embedding: vecC, Model: "test"})
+	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "iD", ProjectID: "proj_123", Embedding: vecD, Model: "test"})
 
 	// Query is exactly vecA
 	mock.embedResult = [][]float32{vecA}
@@ -177,10 +184,13 @@ func TestSearchHandler_AppliesFileFilter(t *testing.T) {
 	_ = s.InsertIntent(ctx, types.Intent{ID: "i1", ProjectID: "proj_123", FilePath: "auth.go", Type: "change", Context: "normal", What: "auth", Timestamp: time.Now()})
 	_ = s.InsertIntent(ctx, types.Intent{ID: "i2", ProjectID: "proj_123", FilePath: "users.go", Type: "change", Context: "normal", What: "users", Timestamp: time.Now()})
 
-	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i1", ProjectID: "proj_123", Embedding: make([]float32, 384), Model: "test"})
-	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i2", ProjectID: "proj_123", Embedding: make([]float32, 384), Model: "test"})
+	vec1 := make([]float32, 384)
+	vec1[0] = 1.0
+	
+	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i1", ProjectID: "proj_123", Embedding: vec1, Model: "test"})
+	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i2", ProjectID: "proj_123", Embedding: vec1, Model: "test"})
 
-	mock.embedResult = [][]float32{make([]float32, 384)}
+	mock.embedResult = [][]float32{vec1}
 
 	req, _ := ipc.NewRequest(ipc.TypeSearch, ipc.SearchPayload{Query: "test", FilePath: "auth.go"})
 	resp := handler.Handle(req)
