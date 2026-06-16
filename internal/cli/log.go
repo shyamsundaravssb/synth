@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/shyamsundaravssb/synth/internal/config"
+	"github.com/shyamsundaravssb/synth/internal/daemon"
 	"github.com/shyamsundaravssb/synth/internal/git"
+	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"github.com/shyamsundaravssb/synth/internal/store"
 	"github.com/shyamsundaravssb/synth/internal/ui"
 	"github.com/shyamsundaravssb/synth/pkg/types"
@@ -171,6 +174,9 @@ func runLog(all bool, file, branch, developer, since string, asJSON bool, limit 
 }
 
 func newStatusCmd() *cobra.Command {
+	var lowContextFlag bool
+	var jsonFlag bool
+
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show local project summary",
@@ -179,13 +185,16 @@ in this repository including files worked on
 and low context files.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runStatus()
+			return runStatus(lowContextFlag, jsonFlag)
 		},
 	}
+	
+	cmd.Flags().BoolVar(&lowContextFlag, "low-context", false, "show only low context files")
+	cmd.Flags().BoolVar(&jsonFlag, "json", false, "output as JSON")
 	return cmd
 }
 
-func runStatus() error {
+func runStatus(lowContext bool, asJSON bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		ui.ShowError("could not determine current directory: " + err.Error())
@@ -220,6 +229,79 @@ func runStatus() error {
 	synthStore := store.NewSQLiteStore(db)
 	ctx := context.Background()
 
+	var lowContextFiles []ipc.LowContextFileItem
+
+	running, _, _ := daemon.IsDaemonRunning(daemon.PIDFile)
+	var statusData *ipc.StatusData
+
+	if running {
+		client := ipc.NewClient(daemon.SockFile)
+		req, _ := ipc.NewRequest(ipc.TypeStatus, ipc.StatusPayload{})
+		resp, err := client.Send(req)
+		if err == nil && resp.Status == ipc.StatusOK {
+			sd, _ := ipc.ParseStatusData(resp)
+			statusData = sd
+		}
+	}
+
+	if lowContext {
+		if running && statusData != nil {
+			ui.RenderLowContextFiles(statusData.LowContextFiles, cfg.Project.Name, asJSON)
+		} else {
+			threshold := cfg.Behavior.LowContextThreshold
+			files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
+			
+			counts, _ := synthStore.GetFileSaveCounts(ctx, cfg.Project.ID)
+			times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
+			
+			var items []ipc.LowContextFileItem
+			for _, f := range files {
+				saveCount := counts[f]
+				lastTime, hasNote := times[f]
+				var daysSinceNote int
+				if hasNote {
+					daysSinceNote = int(time.Since(lastTime).Hours() / 24)
+				}
+				items = append(items, ipc.LowContextFileItem{
+					FilePath:         f,
+					SaveCount:        saveCount,
+					HasEverBeenNoted: hasNote,
+					DaysSinceNote:    daysSinceNote,
+				})
+			}
+			ui.RenderLowContextFiles(items, cfg.Project.Name, asJSON)
+			if !asJSON {
+				ui.ShowInfo("daemon offline — showing cached data only")
+			}
+		}
+		return nil
+	}
+
+	if running && statusData != nil {
+		lowContextFiles = statusData.LowContextFiles
+	} else {
+		threshold := cfg.Behavior.LowContextThreshold
+		files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
+		
+		counts, _ := synthStore.GetFileSaveCounts(ctx, cfg.Project.ID)
+		times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
+		
+		for _, f := range files {
+			saveCount := counts[f]
+			lastTime, hasNote := times[f]
+			var daysSinceNote int
+			if hasNote {
+				daysSinceNote = int(time.Since(lastTime).Hours() / 24)
+			}
+			lowContextFiles = append(lowContextFiles, ipc.LowContextFileItem{
+				FilePath:         f,
+				SaveCount:        saveCount,
+				HasEverBeenNoted: hasNote,
+				DaysSinceNote:    daysSinceNote,
+			})
+		}
+	}
+
 	totalNotes, err := synthStore.CountIntents(ctx, cfg.Project.ID)
 	if err != nil {
 		return fmt.Errorf("could not count intents: %w", err)
@@ -236,29 +318,15 @@ func runStatus() error {
 
 	allIntents, err := synthStore.ListIntents(ctx, store.IntentFilter{
 		ProjectID: cfg.Project.ID,
-		Limit:     0, // ListIntents treats Limit 0 as 20 default?
+		Limit:     1000000,
 	})
 	if err != nil {
 		return fmt.Errorf("could not list all intents: %w", err)
 	}
 
-	// WAIT: the instruction says "(get all for summary building)", but wait, if Limit: 0 means 20, I should set limit to -1.
-	// Oh, I will just set Limit to a very large number or fix ListIntents.
-	// In intents.go: "if limit <= 0 { limit = 20 }". So Limit: 0 defaults to 20. Limit: -1 also defaults to 20!
-	// If I need to get all, how?
-	// Oh! Let's check what `allIntents` query needs. I will set Limit to `1000000`.
-
-	// Wait, I will use `1000000` for now.
-
 	filesWithNotes := buildFileSummary(allIntents)
 
-	threshold := cfg.Behavior.LowContextThreshold
-	lowContextFiles, err := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
-	if err != nil {
-		return fmt.Errorf("could not get low context files: %w", err)
-	}
-
-	statusData := ui.StatusData{
+	statusResult := ui.StatusData{
 		ProjectName:     cfg.Project.Name,
 		Developer:       cfg.Developer.Name,
 		TotalNotes:      totalNotes,
@@ -267,7 +335,13 @@ func runStatus() error {
 		LastNote:        lastNote,
 	}
 
-	ui.RenderStatus(statusData)
+	if asJSON {
+		// Output StatusResult as JSON
+		out, _ := json.MarshalIndent(statusResult, "", "  ")
+		fmt.Println(string(out))
+	} else {
+		ui.RenderStatus(statusResult)
+	}
 
 	return nil
 }

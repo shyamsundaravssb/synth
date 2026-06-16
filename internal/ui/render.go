@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"github.com/shyamsundaravssb/synth/internal/search"
 	"github.com/shyamsundaravssb/synth/pkg/types"
 )
@@ -31,7 +32,7 @@ type StatusData struct {
 	Developer       string
 	TotalNotes      int
 	FilesWithNotes  []FileNoteSummary
-	LowContextFiles []string
+	LowContextFiles []ipc.LowContextFileItem
 	LastNote        *types.Intent // nil if no notes yet
 }
 
@@ -201,7 +202,7 @@ func RenderStatus(status StatusData) {
 		fmt.Printf("  %s%sLOW CONTEXT FILES (saved without notes):%s\n",
 			ansiBold, ansiDim, ansiReset)
 		for _, f := range status.LowContextFiles {
-			fmt.Printf("    %s\n", f)
+			fmt.Printf("    %s  %s(%d saves)%s\n", f.FilePath, ansiDim, f.SaveCount, ansiReset)
 		}
 		fmt.Println()
 	}
@@ -218,6 +219,67 @@ func RenderStatus(status StatusData) {
 			ansiDim, relTime, ansiReset)
 		fmt.Printf("    %s\n", status.LastNote.What)
 	}
+	fmt.Println()
+}
+
+type lowContextFilesJSON struct {
+	Version         int                      `json:"version"`
+	Project         string                   `json:"project"`
+	LowContextFiles []ipc.LowContextFileItem `json:"low_context_files"`
+	Count           int                      `json:"count"`
+}
+
+func RenderLowContextFiles(files []ipc.LowContextFileItem, projectName string, jsonMode bool) {
+	if jsonMode {
+		if files == nil {
+			files = []ipc.LowContextFileItem{}
+		}
+		out := lowContextFilesJSON{
+			Version:         1,
+			Project:         projectName,
+			LowContextFiles: files,
+			Count:           len(files),
+		}
+		data, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Println(string(data))
+		return
+	}
+
+	if len(files) == 0 {
+		fmt.Println()
+		fmt.Printf("  %s✓ No low context files — all good.%s\n", ansiGreen, ansiReset)
+		fmt.Println()
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("  %sLOW CONTEXT FILES%s  %s·%s  %s\n", ansiBold, ansiReset, ansiDim, ansiReset, projectName)
+	fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 42), ansiReset)
+	fmt.Println()
+
+	for _, f := range files {
+		fmt.Printf("  %s%s%s\n", ansiBold+ansiWhite, f.FilePath, ansiReset)
+		fmt.Printf("  %s· %d saves without a note%s\n", ansiDim, f.SaveCount, ansiReset)
+		
+		if !f.HasEverBeenNoted {
+			fmt.Printf("  %s· never noted%s\n", ansiYellow, ansiReset)
+		} else {
+			if f.DaysSinceNote == 0 {
+				fmt.Printf("  %s· noted today%s\n", ansiGreen, ansiReset)
+			} else if f.DaysSinceNote == 1 {
+				fmt.Printf("  %s· last note: yesterday%s\n", ansiDim, ansiReset)
+			} else if f.DaysSinceNote > 3 {
+				fmt.Printf("  %s· last note: %d days ago%s\n", ansiYellow, f.DaysSinceNote, ansiReset)
+			} else {
+				fmt.Printf("  %s· last note: %d days ago%s\n", ansiDim, f.DaysSinceNote, ansiReset)
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 42), ansiReset)
+	fmt.Printf("  %d files need attention\n", len(files))
+	fmt.Printf("  %s· Run 'synth note' to add context%s\n", ansiDim, ansiReset)
 	fmt.Println()
 }
 

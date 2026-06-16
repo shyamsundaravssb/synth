@@ -281,6 +281,7 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 	fileSavesCount := 0
 	embeddingsCount := 0
 	lowContextCount := 0
+	var lowContextFiles []ipc.LowContextFileItem
 
 	if d.synthStore != nil && d.projectID != "" {
 		if c, err := d.synthStore.CountIntents(ctx, d.projectID); err == nil {
@@ -295,6 +296,16 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 		if d.lowContextScorer != nil {
 			if cached, err := d.lowContextScorer.LoadCachedResults(ctx); err == nil {
 				lowContextCount = len(cached)
+				items := []ipc.LowContextFileItem{}
+				for _, f := range cached {
+					items = append(items, ipc.LowContextFileItem{
+						FilePath:         f.FilePath,
+						SaveCount:        f.SaveCount,
+						HasEverBeenNoted: f.HasEverBeenNoted,
+						DaysSinceNote:    f.DaysSinceNote,
+					})
+				}
+				lowContextFiles = items
 			}
 		}
 	}
@@ -307,6 +318,7 @@ func (d *Daemon) handleStatus(req *ipc.Request) *ipc.Response {
 		FileSavesCount:  fileSavesCount,
 		EmbeddingsCount: embeddingsCount,
 		LowContextCount: lowContextCount,
+		LowContextFiles: lowContextFiles,
 		LogFile:         d.LogFile,
 		SockFile:        d.SockFile,
 	}

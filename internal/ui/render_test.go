@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shyamsundaravssb/synth/internal/ipc"
 	"github.com/shyamsundaravssb/synth/pkg/types"
 )
 
@@ -237,7 +238,7 @@ func TestRenderStatus_WithNotes(t *testing.T) {
 			{FilePath: "db.go", NoteCount: 2},
 			{FilePath: "store.go", NoteCount: 1},
 		},
-		LowContextFiles: []string{"config.go"},
+		LowContextFiles: []ipc.LowContextFileItem{{FilePath: "config.go", SaveCount: 5}},
 		LastNote:        lastNote,
 	}
 
@@ -297,6 +298,90 @@ func TestRenderIntentLog_WithIntents(t *testing.T) {
 	}
 	if !strings.Contains(output, "Added pooling") {
 		t.Error("expected 'What' content in output")
+	}
+}
+
+func TestRenderLowContextFiles_Empty(t *testing.T) {
+	output := captureStdout(t, func() {
+		RenderLowContextFiles([]ipc.LowContextFileItem{}, "synth", false)
+	})
+
+	if !strings.Contains(output, "No low context files") {
+		t.Error("expected 'No low context files' in output")
+	}
+}
+
+func TestRenderLowContextFiles_NeverNoted(t *testing.T) {
+	item := ipc.LowContextFileItem{
+		FilePath:         "auth.go",
+		SaveCount:        8,
+		HasEverBeenNoted: false,
+		DaysSinceNote:    0,
+	}
+	output := captureStdout(t, func() {
+		RenderLowContextFiles([]ipc.LowContextFileItem{item}, "synth", false)
+	})
+
+	if !strings.Contains(output, "auth.go") {
+		t.Error("expected 'auth.go' in output")
+	}
+	if !strings.Contains(output, "8 saves") {
+		t.Error("expected '8 saves' in output")
+	}
+	if !strings.Contains(output, "never noted") {
+		t.Error("expected 'never noted' in output")
+	}
+}
+
+func TestRenderLowContextFiles_WithOldNote(t *testing.T) {
+	item := ipc.LowContextFileItem{
+		FilePath:         "users.go",
+		SaveCount:        6,
+		HasEverBeenNoted: true,
+		DaysSinceNote:    5,
+	}
+	output := captureStdout(t, func() {
+		RenderLowContextFiles([]ipc.LowContextFileItem{item}, "synth", false)
+	})
+
+	if !strings.Contains(output, "5 days ago") {
+		t.Error("expected '5 days ago' in output")
+	}
+}
+
+func TestRenderLowContextFilesJSON_ValidOutput(t *testing.T) {
+	items := []ipc.LowContextFileItem{
+		{
+			FilePath:         "auth.go",
+			SaveCount:        8,
+			HasEverBeenNoted: false,
+			DaysSinceNote:    0,
+		},
+		{
+			FilePath:         "users.go",
+			SaveCount:        6,
+			HasEverBeenNoted: true,
+			DaysSinceNote:    5,
+		},
+	}
+
+	output := captureStdout(t, func() {
+		RenderLowContextFiles(items, "synth", true)
+	})
+
+	var envelope map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+		t.Fatalf("output is not valid JSON: %v\noutput: %s", err, output)
+	}
+
+	version, ok := envelope["version"].(float64)
+	if !ok || int(version) != 1 {
+		t.Errorf("version = %v, want 1", envelope["version"])
+	}
+
+	count, ok := envelope["count"].(float64)
+	if !ok || int(count) != 2 {
+		t.Errorf("count = %v, want 2", envelope["count"])
 	}
 }
 
