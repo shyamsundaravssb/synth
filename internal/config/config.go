@@ -46,7 +46,7 @@ type SyncSection struct {
 func DefaultProjectConfig() *ProjectConfig {
 	return &ProjectConfig{
 		Behavior: BehaviorSection{
-			LowContextThreshold: 3,
+			LowContextThreshold: 5,
 		},
 		Sync: SyncSection{
 			IntervalHours: 6,

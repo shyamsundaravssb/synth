@@ -527,3 +527,147 @@ func TestGetIntentsByIDs_EmptySlice(t *testing.T) {
 		t.Errorf("GetIntentsByIDs([]) returned nil, want empty slice")
 	}
 }
+
+// ─── TestGetFileSaveCounts_ReturnsCorrectCounts ───────────────────────────────
+
+func TestGetFileSaveCounts_ReturnsCorrectCounts(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	saves := map[string]int{
+		"file1.go": 3,
+		"file2.go": 7,
+		"file3.go": 1,
+	}
+
+	for file, count := range saves {
+		for i := 0; i < count; i++ {
+			if err := s.RecordFileSave(ctx, "proj-1", file, false); err != nil {
+				t.Fatalf("RecordFileSave error = %v", err)
+			}
+		}
+	}
+
+	counts, err := s.GetFileSaveCounts(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetFileSaveCounts() error = %v", err)
+	}
+
+	if len(counts) != 3 {
+		t.Fatalf("GetFileSaveCounts() returned %d entries, want 3", len(counts))
+	}
+
+	for file, expected := range saves {
+		if counts[file] != expected {
+			t.Errorf("count for %s = %d, want %d", file, counts[file], expected)
+		}
+	}
+}
+
+// ─── TestGetFileSaveCounts_Empty ──────────────────────────────────────────────
+
+func TestGetFileSaveCounts_Empty(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	counts, err := s.GetFileSaveCounts(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetFileSaveCounts() error = %v", err)
+	}
+	if counts == nil {
+		t.Error("expected empty map, got nil")
+	}
+	if len(counts) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(counts))
+	}
+}
+
+// ─── TestGetLastNoteTimePerFile_ReturnsLatest ─────────────────────────────────
+
+func TestGetLastNoteTimePerFile_ReturnsLatest(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	t1 := time.Now().Add(-3 * time.Hour)
+	t2 := time.Now().Add(-2 * time.Hour)
+	t3 := time.Now().Add(-1 * time.Hour)
+
+	for i, ts := range []time.Time{t1, t2, t3} {
+		in := makeIntent(fmt.Sprintf("id-%d", i), "proj-1", "file1.go")
+		in.Timestamp = ts
+		if err := s.InsertIntent(ctx, in); err != nil {
+			t.Fatalf("InsertIntent error = %v", err)
+		}
+	}
+
+	timesMap, err := s.GetLastNoteTimePerFile(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetLastNoteTimePerFile() error = %v", err)
+	}
+
+	if len(timesMap) != 1 {
+		t.Fatalf("returned %d entries, want 1", len(timesMap))
+	}
+
+	gotTs := timesMap["file1.go"]
+	// Verify within a millisecond due to UnixMilli conversion
+	if gotTs.UnixMilli() != t3.UnixMilli() {
+		t.Errorf("latest time = %v, want %v", gotTs, t3)
+	}
+}
+
+// ─── TestGetLastNoteTimePerFile_MultipleFiles ─────────────────────────────────
+
+func TestGetLastNoteTimePerFile_MultipleFiles(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	t1 := time.Now().Add(-2 * time.Hour)
+	t2 := time.Now().Add(-1 * time.Hour)
+
+	in1 := makeIntent("id1", "proj-1", "file1.go")
+	in1.Timestamp = t1
+	if err := s.InsertIntent(ctx, in1); err != nil {
+		t.Fatalf("InsertIntent error = %v", err)
+	}
+
+	in2 := makeIntent("id2", "proj-1", "file2.go")
+	in2.Timestamp = t2
+	if err := s.InsertIntent(ctx, in2); err != nil {
+		t.Fatalf("InsertIntent error = %v", err)
+	}
+
+	timesMap, err := s.GetLastNoteTimePerFile(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetLastNoteTimePerFile() error = %v", err)
+	}
+
+	if len(timesMap) != 2 {
+		t.Fatalf("returned %d entries, want 2", len(timesMap))
+	}
+
+	if timesMap["file1.go"].UnixMilli() != t1.UnixMilli() {
+		t.Errorf("file1.go time mismatch")
+	}
+	if timesMap["file2.go"].UnixMilli() != t2.UnixMilli() {
+		t.Errorf("file2.go time mismatch")
+	}
+}
+
+// ─── TestGetLastNoteTimePerFile_Empty ─────────────────────────────────────────
+
+func TestGetLastNoteTimePerFile_Empty(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	timesMap, err := s.GetLastNoteTimePerFile(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetLastNoteTimePerFile() error = %v", err)
+	}
+	if timesMap == nil {
+		t.Error("expected empty map, got nil")
+	}
+	if len(timesMap) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(timesMap))
+	}
+}

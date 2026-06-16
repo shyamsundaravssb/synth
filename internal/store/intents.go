@@ -48,6 +48,8 @@ type Store interface {
 	CountEmbeddings(ctx context.Context, projectID string) (int, error)
 	GetAllEmbeddings(ctx context.Context, projectID string) ([]EmbeddingRecord, error)
 	GetIntentsByIDs(ctx context.Context, ids []string) ([]types.Intent, error)
+	GetFileSaveCounts(ctx context.Context, projectID string) (map[string]int, error)
+	GetLastNoteTimePerFile(ctx context.Context, projectID string) (map[string]time.Time, error)
 }
 
 // SQLiteStore implements Store backed by a SQLite database.

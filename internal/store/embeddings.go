@@ -302,3 +302,67 @@ func (s *SQLiteStore) GetAllEmbeddings(ctx context.Context, projectID string) ([
 	}
 	return results, rows.Err()
 }
+
+// ─── GetFileSaveCounts ───────────────────────────────────────────────────────
+
+// GetFileSaveCounts returns a map of filePath → total save count for all files in the project.
+func (s *SQLiteStore) GetFileSaveCounts(ctx context.Context, projectID string) (map[string]int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT file_path, COUNT(*) as save_count
+		 FROM file_saves
+		 WHERE project_id = ?
+		 GROUP BY file_path`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var path string
+		var count int
+		if err := rows.Scan(&path, &count); err != nil {
+			return nil, err
+		}
+		counts[path] = count
+	}
+	return counts, rows.Err()
+}
+
+// ─── GetLastNoteTimePerFile ──────────────────────────────────────────────────
+
+// GetLastNoteTimePerFile returns a map of filePath → timestamp of the most recent intent note.
+func (s *SQLiteStore) GetLastNoteTimePerFile(ctx context.Context, projectID string) (map[string]time.Time, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT file_path, MAX(timestamp) as last_note
+		 FROM intents
+		 WHERE project_id = ?
+		 GROUP BY file_path`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	times := make(map[string]time.Time)
+	for rows.Next() {
+		var path string
+		var tsMs int64
+		if err := rows.Scan(&path, &tsMs); err != nil {
+			return nil, err
+		}
+		times[path] = time.UnixMilli(tsMs).UTC()
+	}
+	return times, rows.Err()
+}
