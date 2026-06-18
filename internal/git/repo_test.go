@@ -381,3 +381,23 @@ func containsStr(s, substr string) bool {
 	}
 	return false
 }
+
+func TestParseGitStatus_NoTruncatedFilenames(t *testing.T) {
+	input := " M auth.go\n" +
+		"?? auth.go\n" +
+		"A  auth.go\n" +
+		"MM auth.go\n" +
+		"R  old.go -> auth.go\n"
+
+	files := parsePorcelainStatus(input)
+
+	if len(files) != 5 {
+		t.Fatalf("expected 5 files, got %d", len(files))
+	}
+
+	for i, f := range files {
+		if f != "auth.go" {
+			t.Errorf("expected file %d to be 'auth.go', got '%s'", i, f)
+		}
+	}
+}

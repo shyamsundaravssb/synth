@@ -47,7 +47,7 @@ func NewLowContextScorer(s store.Store, projectID string, threshold int, log *Lo
 // ComputeLowContextFiles analyzes the project to find files that have been saved
 // many times but lack recent intent notes.
 func (lc *LowContextScorer) ComputeLowContextFiles(ctx context.Context) ([]LowContextFile, error) {
-	saveCounts, err := lc.store.GetFileSaveCounts(ctx, lc.projectID)
+	saveCounts, err := lc.store.GetSaveCountsSinceLastNote(ctx, lc.projectID)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -74,7 +75,31 @@ func runNoteInteractive(fileFlag string, quick bool, whatFlag, whyFlag string) e
 		return err
 	}
 
-	// Step 2 — Determine target file.
+	// Step 2 — Open the store
+	dbPath := store.DBPath(cfg.Project.ID)
+	db, err := store.Open(dbPath)
+	if err != nil {
+		ui.ShowError("could not open database: " + err.Error())
+		return err
+	}
+	defer func() { _ = db.Close() }()
+
+	synthStore := store.NewSQLiteStore(db)
+	ctx := context.Background()
+
+	saveCounts, _ := synthStore.GetSaveCountsSinceLastNote(ctx, cfg.Project.ID)
+	if saveCounts == nil {
+		saveCounts = make(map[string]int)
+	}
+
+	lastNoteTimes, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
+	if lastNoteTimes == nil {
+		lastNoteTimes = make(map[string]time.Time)
+	}
+
+	threshold := cfg.Behavior.LowContextThreshold
+
+	// Step 3 — Determine target file.
 	var relPath string
 
 	if fileFlag != "" {
@@ -93,6 +118,12 @@ func runNoteInteractive(fileFlag string, quick bool, whatFlag, whyFlag string) e
 			ui.ShowError(err.Error())
 			return err
 		}
+
+		if count := saveCounts[relPath]; count >= threshold {
+			ui.ShowInfo(fmt.Sprintf(
+				"⚠ %s has %d saves without much documentation — good thing you're adding context now",
+				relPath, count))
+		}
 	} else {
 		if whatFlag != "" && whyFlag != "" {
 			ui.ShowError("--file is required when using --what and --why")
@@ -105,33 +136,41 @@ func runNoteInteractive(fileFlag string, quick bool, whatFlag, whyFlag string) e
 			ui.ShowError("could not list modified files: " + err.Error())
 			return err
 		}
-		options := buildFileOptions(files, gitRoot)
-		selected, err := ui.SelectFile(options)
+
+		sortedFiles := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+		labelToPath := make(map[string]fileWithLabel)
+		for _, sf := range sortedFiles {
+			labelToPath[sf.Label] = sf
+		}
+
+		options := buildFileOptions(sortedFiles, gitRoot)
+		selectedLabel, err := ui.SelectFile(options)
 		if err != nil {
 			ui.ShowInfo("cancelled")
 			return nil // Clean exit on cancel.
 		}
 
+		var selectedPath string
+		if sf, ok := labelToPath[selectedLabel]; ok {
+			selectedPath = sf.Path
+			if sf.IsLowContext {
+				ui.ShowInfo(fmt.Sprintf(
+					"⚠ %s has %d saves without much documentation — good thing you're adding context now",
+					sf.Path, sf.SaveCount))
+			}
+		} else {
+			selectedPath = selectedLabel
+		}
+
 		// The selected path might be absolute (manual entry) or relative.
-		relPath, err = makeRelativePath(gitRoot, selected)
+		relPath, err = makeRelativePath(gitRoot, selectedPath)
 		if err != nil {
 			ui.ShowError(err.Error())
 			return err
 		}
 	}
 
-	// Step 3 — Determine note type.
-	dbPath := store.DBPath(cfg.Project.ID)
-	db, err := store.Open(dbPath)
-	if err != nil {
-		ui.ShowError("could not open database: " + err.Error())
-		return err
-	}
-	defer func() { _ = db.Close() }()
-
-	synthStore := store.NewSQLiteStore(db)
-	ctx := context.Background()
-
+	// Step 4 — Determine note type.
 	existing, err := synthStore.GetFileRegistry(ctx, cfg.Project.ID, relPath)
 	if err != nil {
 		ui.ShowError("could not check file registry: " + err.Error())
@@ -303,14 +342,14 @@ func saveExistingFileNote(
 // Testable pure functions
 // ---------------------------------------------------------------------------
 
-// buildFileOptions converts a []string of relative file paths into
+// buildFileOptions converts a []fileWithLabel into
 // []ui.FileOption with human-readable ModifiedAgo by checking file ModTime.
-func buildFileOptions(files []string, gitRoot string) []ui.FileOption {
+func buildFileOptions(files []fileWithLabel, gitRoot string) []ui.FileOption {
 	options := make([]ui.FileOption, 0, len(files))
 	now := time.Now()
 
 	for _, f := range files {
-		absPath := filepath.Join(gitRoot, f)
+		absPath := filepath.Join(gitRoot, f.Path)
 		info, err := os.Stat(absPath)
 
 		var modAgo string
@@ -321,12 +360,75 @@ func buildFileOptions(files []string, gitRoot string) []ui.FileOption {
 		}
 
 		options = append(options, ui.FileOption{
-			Path:        f,
+			Path:        f.Label,
 			ModifiedAgo: modAgo,
 		})
 	}
 
 	return options
+}
+
+type fileWithLabel struct {
+	Path         string
+	Label        string
+	IsLowContext bool
+	SaveCount    int
+}
+
+func sortFilesByLowContext(
+	files []string,
+	saveCounts map[string]int,
+	lastNoteTimes map[string]time.Time,
+	threshold int,
+) []fileWithLabel {
+	var lowContext []fileWithLabel
+	var normal []fileWithLabel
+	seen := make(map[string]bool)
+
+	for _, f := range files {
+		if seen[f] {
+			continue
+		}
+		seen[f] = true
+
+		count := 0
+		if saveCounts != nil {
+			count = saveCounts[f]
+		}
+		
+		if count >= threshold {
+			lastNote, hasNote := lastNoteTimes[f]
+			var noteStatus string
+			if !hasNote {
+				noteStatus = "never noted"
+			} else {
+				days := int(time.Since(lastNote).Hours() / 24)
+				switch days {
+				case 0:
+					noteStatus = "noted today"
+				case 1:
+					noteStatus = "noted yesterday"
+				default:
+					noteStatus = fmt.Sprintf("noted %d days ago", days)
+				}
+			}
+
+			label := fmt.Sprintf("⚠ %s  (%d saves, %s)", f, count, noteStatus)
+			lowContext = append(lowContext, fileWithLabel{
+				Path: f, Label: label, IsLowContext: true, SaveCount: count,
+			})
+		} else {
+			normal = append(normal, fileWithLabel{
+				Path: f, Label: f, IsLowContext: false, SaveCount: count,
+			})
+		}
+	}
+
+	sort.Slice(lowContext, func(i, j int) bool {
+		return lowContext[i].SaveCount > lowContext[j].SaveCount
+	})
+
+	return append(lowContext, normal...)
 }
 
 // formatDurationAgo returns a human-readable duration string for file ages.

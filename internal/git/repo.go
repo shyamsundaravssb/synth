@@ -107,22 +107,8 @@ func GetRecentlyModifiedFiles(gitRoot string, since time.Duration) ([]string, er
 	// Source 1: git status --porcelain
 	statusOutput, err := runGitCommand(gitRoot, "status", "--porcelain")
 	if err == nil && statusOutput != "" {
-		scanner := bufio.NewScanner(strings.NewReader(statusOutput))
-		for scanner.Scan() {
-			line := scanner.Text()
-			if len(line) < 4 {
-				continue
-			}
-			// Porcelain format: XY filename
-			// The first two characters are status codes, then a space.
-			filePath := strings.TrimSpace(line[3:])
-			// Handle renamed files: "old -> new"
-			if idx := strings.Index(filePath, " -> "); idx >= 0 {
-				filePath = filePath[idx+4:]
-			}
-			if filePath != "" {
-				addFile(filePath)
-			}
+		for _, filePath := range parsePorcelainStatus(statusOutput) {
+			addFile(filePath)
 		}
 	}
 
@@ -155,6 +141,29 @@ func GetRecentlyModifiedFiles(gitRoot string, since time.Duration) ([]string, er
 	})
 
 	return result, nil
+}
+
+// parsePorcelainStatus extracts file paths from git status --porcelain output.
+func parsePorcelainStatus(statusOutput string) []string {
+	var result []string
+	scanner := bufio.NewScanner(strings.NewReader(statusOutput))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) < 4 {
+			continue
+		}
+		// Porcelain format: XY filename
+		// Using line[2:] handles cases where git might not output exactly one space after XY.
+		filePath := strings.TrimSpace(line[2:])
+		// Handle renamed files: "old -> new"
+		if idx := strings.Index(filePath, " -> "); idx >= 0 {
+			filePath = filePath[idx+4:]
+		}
+		if filePath != "" {
+			result = append(result, filePath)
+		}
+	}
+	return result
 }
 
 // GetFileDiff returns the diff of a file against HEAD. If no diff exists

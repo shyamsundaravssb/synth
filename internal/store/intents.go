@@ -49,6 +49,7 @@ type Store interface {
 	GetAllEmbeddings(ctx context.Context, projectID string) ([]EmbeddingRecord, error)
 	GetIntentsByIDs(ctx context.Context, ids []string) ([]types.Intent, error)
 	GetFileSaveCounts(ctx context.Context, projectID string) (map[string]int, error)
+	GetSaveCountsSinceLastNote(ctx context.Context, projectID string) (map[string]int, error)
 	GetLastNoteTimePerFile(ctx context.Context, projectID string) (map[string]time.Time, error)
 }
 

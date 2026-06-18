@@ -671,3 +671,97 @@ func TestGetLastNoteTimePerFile_Empty(t *testing.T) {
 		t.Errorf("expected 0 entries, got %d", len(timesMap))
 	}
 }
+
+// ─── TestGetSaveCountsSinceLastNote_NeverNoted ───────────────────────────────
+
+func TestGetSaveCountsSinceLastNote_NeverNoted(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	// Insert 6 file_saves for auth.go, no intents
+	for i := 0; i < 6; i++ {
+		if err := s.RecordFileSave(ctx, "proj-1", "auth.go", false); err != nil {
+			t.Fatalf("RecordFileSave error = %v", err)
+		}
+	}
+
+	counts, err := s.GetSaveCountsSinceLastNote(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetSaveCountsSinceLastNote error = %v", err)
+	}
+
+	if counts["auth.go"] != 6 {
+		t.Errorf("expected count 6, got %d", counts["auth.go"])
+	}
+}
+
+// ─── TestGetSaveCountsSinceLastNote_AfterNote ────────────────────────────────
+
+func TestGetSaveCountsSinceLastNote_AfterNote(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	// Insert 1 intent at time T
+	in := makeIntent("id1", "proj-1", "auth.go")
+	in.Timestamp = time.Now().Add(-1 * time.Hour)
+	if err := s.InsertIntent(ctx, in); err != nil {
+		t.Fatalf("InsertIntent error = %v", err)
+	}
+
+	// Insert 3 file_saves after T
+	for i := 0; i < 3; i++ {
+		if err := s.RecordFileSave(ctx, "proj-1", "auth.go", false); err != nil {
+			t.Fatalf("RecordFileSave error = %v", err)
+		}
+	}
+
+	counts, err := s.GetSaveCountsSinceLastNote(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetSaveCountsSinceLastNote error = %v", err)
+	}
+
+	if counts["auth.go"] != 3 {
+		t.Errorf("expected count 3, got %d", counts["auth.go"])
+	}
+}
+
+// ─── TestGetSaveCountsSinceLastNote_SavesBeforeAndAfterNote ──────────────────
+
+func TestGetSaveCountsSinceLastNote_SavesBeforeAndAfterNote(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	// Insert 5 file_saves at T1
+	for i := 0; i < 5; i++ {
+		if err := s.RecordFileSave(ctx, "proj-1", "auth.go", false); err != nil {
+			t.Fatalf("RecordFileSave error = %v", err)
+		}
+	}
+
+	time.Sleep(5 * time.Millisecond)
+
+	// Insert 1 intent at T2
+	in := makeIntent("id2", "proj-1", "auth.go")
+	in.Timestamp = time.Now()
+	if err := s.InsertIntent(ctx, in); err != nil {
+		t.Fatalf("InsertIntent error = %v", err)
+	}
+
+	time.Sleep(5 * time.Millisecond)
+
+	// Insert 2 file_saves at T3
+	for i := 0; i < 2; i++ {
+		if err := s.RecordFileSave(ctx, "proj-1", "auth.go", false); err != nil {
+			t.Fatalf("RecordFileSave error = %v", err)
+		}
+	}
+
+	counts, err := s.GetSaveCountsSinceLastNote(ctx, "proj-1")
+	if err != nil {
+		t.Fatalf("GetSaveCountsSinceLastNote error = %v", err)
+	}
+
+	if counts["auth.go"] != 2 {
+		t.Errorf("expected count 2, got %d", counts["auth.go"])
+	}
+}

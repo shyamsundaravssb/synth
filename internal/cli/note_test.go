@@ -71,7 +71,12 @@ func TestBuildFileOptions_PopulatesFields(t *testing.T) {
 		}
 	}
 
-	options := buildFileOptions(files, dir)
+	var labels []fileWithLabel
+	for _, f := range files {
+		labels = append(labels, fileWithLabel{Path: f, Label: f})
+	}
+
+	options := buildFileOptions(labels, dir)
 
 	if len(options) != len(files) {
 		t.Fatalf("buildFileOptions returned %d options, want %d", len(options), len(files))
@@ -93,7 +98,7 @@ func TestBuildFileOptions_PopulatesFields(t *testing.T) {
 
 func TestBuildFileOptions_NonexistentFile(t *testing.T) {
 	dir := t.TempDir()
-	files := []string{"missing.go"}
+	files := []fileWithLabel{{Path: "missing.go", Label: "missing.go"}}
 
 	options := buildFileOptions(files, dir)
 
@@ -562,5 +567,115 @@ func TestNoteNonInteractive_ExistingFile(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("intent not found in DB")
+	}
+}
+
+func TestSortFilesByLowContext_LowContextFirst(t *testing.T) {
+	files := []string{"a.go", "b.go", "c.go"}
+	saveCounts := map[string]int{"a.go": 2, "b.go": 8, "c.go": 6}
+	lastNoteTimes := map[string]time.Time{}
+	threshold := 5
+
+	result := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+
+	if len(result) != 3 {
+		t.Fatalf("expected 3 files, got %d", len(result))
+	}
+
+	if result[0].Path != "b.go" || !result[0].IsLowContext {
+		t.Errorf("expected first to be low-context 'b.go', got %s", result[0].Path)
+	}
+	if result[1].Path != "c.go" || !result[1].IsLowContext {
+		t.Errorf("expected second to be low-context 'c.go', got %s", result[1].Path)
+	}
+	if result[2].Path != "a.go" || result[2].IsLowContext {
+		t.Errorf("expected third to be non-low-context 'a.go', got %s", result[2].Path)
+	}
+}
+
+func TestSortFilesByLowContext_NoLowContextFiles(t *testing.T) {
+	files := []string{"a.go", "b.go"}
+	saveCounts := map[string]int{"a.go": 2, "b.go": 1}
+	lastNoteTimes := map[string]time.Time{}
+	threshold := 5
+
+	result := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(result))
+	}
+
+	for i, expected := range files {
+		if result[i].Path != expected {
+			t.Errorf("expected path %s, got %s", expected, result[i].Path)
+		}
+		if result[i].IsLowContext {
+			t.Errorf("expected %s to NOT be low context", expected)
+		}
+	}
+}
+
+func TestSortFilesByLowContext_LabelFormat(t *testing.T) {
+	files := []string{"high.go", "high_noted.go", "low.go"}
+	saveCounts := map[string]int{"high.go": 8, "high_noted.go": 7, "low.go": 2}
+	lastNoteTimes := map[string]time.Time{
+		"high_noted.go": time.Now(),
+	}
+	threshold := 5
+
+	result := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+
+	// high.go should be first (8 saves)
+	if result[0].Path != "high.go" {
+		t.Errorf("expected high.go to be first")
+	}
+	if !strings.Contains(result[0].Label, "never noted") {
+		t.Errorf("expected label to contain 'never noted', got: %s", result[0].Label)
+	}
+
+	// high_noted.go should be second (7 saves)
+	if result[1].Path != "high_noted.go" {
+		t.Errorf("expected high_noted.go to be second")
+	}
+	if !strings.Contains(result[1].Label, "noted today") {
+		t.Errorf("expected label to contain 'noted today', got: %s", result[1].Label)
+	}
+
+	// low.go should be third
+	if result[2].Path != "low.go" {
+		t.Errorf("expected low.go to be third")
+	}
+}
+
+func TestSortFilesByLowContext_EmptySaveCounts(t *testing.T) {
+	files := []string{"a.go"}
+	saveCounts := map[string]int{}
+	lastNoteTimes := map[string]time.Time{}
+	threshold := 5
+
+	// Verify no panic
+	result := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(result))
+	}
+	if result[0].IsLowContext {
+		t.Errorf("expected file to not be low context")
+	}
+}
+
+func TestBuildFileOptions_DeduplicatesPaths(t *testing.T) {
+	files := []string{"auth.go", "auth.go"}
+	saveCounts := map[string]int{"auth.go": 7}
+	lastNoteTimes := map[string]time.Time{}
+	threshold := 5
+
+	result := sortFilesByLowContext(files, saveCounts, lastNoteTimes, threshold)
+
+	if len(result) != 1 {
+		t.Fatalf("expected exactly 1 entry, got %d", len(result))
+	}
+	if result[0].Path != "auth.go" {
+		t.Errorf("expected path 'auth.go', got %s", result[0].Path)
 	}
 }

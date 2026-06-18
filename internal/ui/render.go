@@ -278,7 +278,11 @@ func RenderLowContextFiles(files []ipc.LowContextFileItem, projectName string, j
 	}
 
 	fmt.Printf("  %s%s%s\n", ansiDim, strings.Repeat("─", 42), ansiReset)
-	fmt.Printf("  %d files need attention\n", len(files))
+	if len(files) == 1 {
+		fmt.Printf("  1 file needs attention\n")
+	} else {
+		fmt.Printf("  %d files need attention\n", len(files))
+	}
 	fmt.Printf("  %s· Run 'synth note' to add context%s\n", ansiDim, ansiReset)
 	fmt.Println()
 }

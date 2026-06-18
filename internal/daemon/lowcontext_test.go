@@ -118,8 +118,9 @@ func TestComputeLowContextFiles_NeverNoted(t *testing.T) {
 
 func TestComputeLowContextFiles_WithRecentNote(t *testing.T) {
 	scorer, s := setupLowContextScorer(t, 5)
+	// Intent must be BEFORE the saves so the saves count towards the threshold.
+	insertIntent(t, s, "proj-1", "auth.go", "recent", time.Now().Add(-1*time.Hour))
 	insertFileSaves(t, s, "proj-1", "auth.go", 6)
-	insertIntent(t, s, "proj-1", "auth.go", "recent", time.Now())
 
 	res, err := scorer.ComputeLowContextFiles(context.Background())
 	if err != nil {
@@ -261,5 +262,31 @@ func TestLoadCachedResults_Empty(t *testing.T) {
 	}
 	if len(loaded) != 0 {
 		t.Errorf("expected 0 entries, got %d", len(loaded))
+	}
+}
+
+func TestComputeLowContextFiles_BelowThresholdAfterNote(t *testing.T) {
+	scorer, s := setupLowContextScorer(t, 5)
+
+	// 8 saves before the note
+	insertFileSaves(t, s, "proj-1", "auth.go", 8)
+
+	time.Sleep(5 * time.Millisecond)
+	// Note added
+	insertIntent(t, s, "proj-1", "auth.go", "reset", time.Now())
+
+	time.Sleep(5 * time.Millisecond)
+	// 2 saves after the note
+	insertFileSaves(t, s, "proj-1", "auth.go", 2)
+
+	res, err := scorer.ComputeLowContextFiles(context.Background())
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	for _, f := range res {
+		if f.FilePath == "auth.go" {
+			t.Errorf("expected auth.go to not be in results (only 2 saves since note)")
+		}
 	}
 }

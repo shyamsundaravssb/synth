@@ -251,7 +251,7 @@ func runStatus(lowContext bool, asJSON bool) error {
 			threshold := cfg.Behavior.LowContextThreshold
 			files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
 			
-			counts, _ := synthStore.GetFileSaveCounts(ctx, cfg.Project.ID)
+			counts, _ := synthStore.GetSaveCountsSinceLastNote(ctx, cfg.Project.ID)
 			times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
 			
 			var items []ipc.LowContextFileItem
@@ -283,7 +283,7 @@ func runStatus(lowContext bool, asJSON bool) error {
 		threshold := cfg.Behavior.LowContextThreshold
 		files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
 		
-		counts, _ := synthStore.GetFileSaveCounts(ctx, cfg.Project.ID)
+		counts, _ := synthStore.GetSaveCountsSinceLastNote(ctx, cfg.Project.ID)
 		times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
 		
 		for _, f := range files {

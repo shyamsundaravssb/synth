@@ -333,6 +333,25 @@ func TestRenderLowContextFiles_NeverNoted(t *testing.T) {
 	}
 }
 
+func TestRenderLowContextFiles_SingularGrammar(t *testing.T) {
+	item := ipc.LowContextFileItem{
+		FilePath:         "auth.go",
+		SaveCount:        8,
+		HasEverBeenNoted: false,
+		DaysSinceNote:    0,
+	}
+	output := captureStdout(t, func() {
+		RenderLowContextFiles([]ipc.LowContextFileItem{item}, "synth", false)
+	})
+
+	if !strings.Contains(output, "1 file needs attention") {
+		t.Error("expected '1 file needs attention' in output")
+	}
+	if strings.Contains(output, "files need attention") {
+		t.Error("expected output to NOT contain 'files need attention'")
+	}
+}
+
 func TestRenderLowContextFiles_WithOldNote(t *testing.T) {
 	item := ipc.LowContextFileItem{
 		FilePath:         "users.go",

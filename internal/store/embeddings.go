@@ -335,6 +335,46 @@ func (s *SQLiteStore) GetFileSaveCounts(ctx context.Context, projectID string) (
 	return counts, rows.Err()
 }
 
+// ─── GetSaveCountsSinceLastNote ──────────────────────────────────────────────
+
+// GetSaveCountsSinceLastNote returns a map of filePath → count of saves
+// that occurred after the most recent intent note for that file.
+func (s *SQLiteStore) GetSaveCountsSinceLastNote(ctx context.Context, projectID string) (map[string]int, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT fs.file_path, COUNT(*) as save_count
+		 FROM file_saves fs
+		 WHERE fs.saved_at > COALESCE(
+			 (SELECT MAX(i.timestamp)
+			  FROM intents i
+			  WHERE i.file_path = fs.file_path
+				AND i.project_id = fs.project_id),
+			 0
+		 )
+		 AND fs.project_id = ?
+		 GROUP BY fs.file_path`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	counts := make(map[string]int)
+	for rows.Next() {
+		var path string
+		var count int
+		if err := rows.Scan(&path, &count); err != nil {
+			return nil, err
+		}
+		counts[path] = count
+	}
+	return counts, rows.Err()
+}
+
 // ─── GetLastNoteTimePerFile ──────────────────────────────────────────────────
 
 // GetLastNoteTimePerFile returns a map of filePath → timestamp of the most recent intent note.
