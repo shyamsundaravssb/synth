@@ -135,23 +135,11 @@ func runInit(gitRoot, projectName, developerName string, addToGitignore bool) er
 	}
 
 	// Step 8 — Write .synth/config.toml.
-	cfg := &config.ProjectConfig{
-		Project: config.ProjectSection{
-			ID:      projectID,
-			Name:    projectName,
-			Created: time.Now().Format("2006-01-02"),
-		},
-		Developer: config.DeveloperSection{
-			Name: developerName,
-		},
-		Behavior: config.BehaviorSection{
-			LowContextThreshold: 3,
-		},
-		Sync: config.SyncSection{
-			ServerURL:     "",
-			IntervalHours: 6,
-		},
-	}
+	cfg := config.DefaultProjectConfig()
+	cfg.Project.ID = projectID
+	cfg.Project.Name = projectName
+	cfg.Project.Created = time.Now().Format("2006-01-02")
+	cfg.Developer.Name = developerName
 	if err := config.SaveProjectConfig(gitRoot, cfg); err != nil {
 		ui.ShowError("could not write config: " + err.Error())
 		cleanup()

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -425,5 +426,36 @@ name = "just-name"
 	}
 	if cfg.User.Email != "" {
 		t.Errorf("User.Email = %q, want empty string", cfg.User.Email)
+	}
+}
+
+func TestSaveProjectConfig_WritesCorrectDefaultThreshold(t *testing.T) {
+	root := t.TempDir()
+
+	cfg := DefaultProjectConfig()
+	cfg.Project.ID = "test-init-001"
+	
+	if err := SaveProjectConfig(root, cfg); err != nil {
+		t.Fatalf("SaveProjectConfig() error = %v", err)
+	}
+
+	// Read the written file back manually to check string
+	path := filepath.Join(root, ".synth", "config.toml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read config file: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "low_context_threshold = 5") {
+		t.Errorf("expected config file to contain 'low_context_threshold = 5', got:\n%s", content)
+	}
+
+	// Parse TOML back
+	loaded, err := LoadProjectConfig(root)
+	if err != nil {
+		t.Fatalf("LoadProjectConfig() error = %v", err)
+	}
+	if loaded.Behavior.LowContextThreshold != 5 {
+		t.Errorf("LowContextThreshold = %d, want 5", loaded.Behavior.LowContextThreshold)
 	}
 }

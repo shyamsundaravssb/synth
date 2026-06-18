@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -91,7 +92,34 @@ func SaveProjectConfig(gitRoot string, cfg *ProjectConfig) error {
 	}
 	defer func() { _ = f.Close() }()
 
-	return toml.NewEncoder(f).Encode(cfg)
+	tmpl := `[project]
+id = "%s"
+name = "%s"
+created = "%s"
+
+[developer]
+name = "%s"
+
+[behavior]
+low_context_threshold = %d
+# Number of saves to a file (since its last
+# note) before it is flagged as needing
+# documentation. Lower = more sensitive.
+
+[sync]
+server_url = "%s"
+interval_hours = %d
+`
+	_, err = fmt.Fprintf(f, tmpl,
+		cfg.Project.ID,
+		cfg.Project.Name,
+		cfg.Project.Created,
+		cfg.Developer.Name,
+		cfg.Behavior.LowContextThreshold,
+		cfg.Sync.ServerURL,
+		cfg.Sync.IntervalHours,
+	)
+	return err
 }
 
 // ---------------------------------------------------------------------------
