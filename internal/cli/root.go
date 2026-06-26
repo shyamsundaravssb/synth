@@ -32,6 +32,7 @@ development smarter.`,
 	cmd.AddCommand(newPostCommitCmd())
 	cmd.AddCommand(newDaemonCmd())
 	cmd.AddCommand(newSearchCmd())
+	cmd.AddCommand(newModelCmd())
 
 	return cmd
 }

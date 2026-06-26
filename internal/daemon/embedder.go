@@ -68,7 +68,7 @@ func (e *Embedder) runLoop() {
 func (e *Embedder) embedPending() {
 	if !e.engine.IsModelPresent() {
 		if !e.modelWarnLogged {
-			e.log.Warn("model not present — embeddings disabled. Model should be at: " + embed.DefaultModelDir())
+			e.log.Warn("model not present — embeddings disabled. Run 'synth model download' to enable semantic search. Expected at: " + embed.DefaultModelDir())
 			e.modelWarnLogged = true
 		}
 		return

@@ -100,7 +100,7 @@ func (e *Engine) IsModelPresent() bool {
 func (e *Engine) load(ctx context.Context) error {
 	// Step 1 — Verify model files are present.
 	if !e.IsModelPresent() {
-		return fmt.Errorf("model not found at %s — run synth daemon start to download it", e.modelDir)
+		return fmt.Errorf("model not found at %s — run 'synth model download' to enable semantic search", e.modelDir)
 	}
 
 	// Step 2 — Create session. Try ORT first; fall back to pure-Go backend.
