@@ -1,0 +1,34 @@
+{
+  "name": "synth-vscode",
+  "displayName": "Synth",
+  "description": "Intent-aware Git companion — search and status from inside VS Code",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "shyamsundaravssb",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "synth.ping",
+        "title": "Synth: Ping Daemon"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "esbuild": "^0.20.0"
+  }
+}
