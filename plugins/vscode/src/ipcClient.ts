@@ -10,6 +10,9 @@ import {
   parsePingData,
   parseErrorData,
   STATUS_ERROR,
+  TYPE_STATUS,
+  StatusData,
+  parseStatusData,
 } from './protocol';
 
 // IMPORTANT: The macOS path is implemented based on the known behavior of the adrg/xdg Go library,
@@ -93,6 +96,20 @@ export class SynthClient {
       throw new Error(`ping failed: ${errData.message}`);
     }
     return parsePingData(resp);
+  }
+
+  async getStatus(): Promise<StatusData> {
+    const resp = await this.send({
+      type: TYPE_STATUS,
+      payload: {},
+    });
+    if (resp.status === STATUS_ERROR) {
+      const errData = parseErrorData(resp);
+      throw new Error(
+        `status request failed: ${errData.message}`
+      );
+    }
+    return parseStatusData(resp);
   }
 
   async isDaemonReachable(): Promise<boolean> {
