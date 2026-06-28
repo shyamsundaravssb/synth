@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SynthClient, getDefaultSocketPath } from './ipcClient';
 import { SynthStatusBar } from './statusBar';
+import { runSearch } from './search';
 
 export function activate(context: vscode.ExtensionContext) {
   const sockPath = getDefaultSocketPath();
@@ -82,9 +83,15 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const searchCommand = vscode.commands.registerCommand(
+    'synth.search',
+    () => runSearch(client)
+  );
+
   context.subscriptions.push(
     pingCommand,
     showStatusCommand,
+    searchCommand,
     { dispose: () => statusBar.stop() }
   );
 }

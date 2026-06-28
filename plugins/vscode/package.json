@@ -20,6 +20,17 @@
       {
         "command": "synth.showStatus",
         "title": "Synth: Show Status"
+      },
+      {
+        "command": "synth.search",
+        "title": "Synth: Search Intent Notes"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "synth.search",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s"
       }
     ]
   },

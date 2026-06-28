@@ -13,6 +13,10 @@ import {
   TYPE_STATUS,
   StatusData,
   parseStatusData,
+  TYPE_SEARCH,
+  SearchPayload,
+  SearchData,
+  parseSearchData,
 } from './protocol';
 
 // IMPORTANT: The macOS path is implemented based on the known behavior of the adrg/xdg Go library,
@@ -110,6 +114,22 @@ export class SynthClient {
       );
     }
     return parseStatusData(resp);
+  }
+
+  async search(
+    payload: SearchPayload
+  ): Promise<SearchData> {
+    const resp = await this.send({
+      type: TYPE_SEARCH,
+      payload,
+    });
+    if (resp.status === STATUS_ERROR) {
+      const errData = parseErrorData(resp);
+      throw new Error(
+        `search failed: ${errData.message}`
+      );
+    }
+    return parseSearchData(resp);
   }
 
   async isDaemonReachable(): Promise<boolean> {

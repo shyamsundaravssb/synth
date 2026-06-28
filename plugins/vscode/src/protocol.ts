@@ -22,8 +22,38 @@ export interface ErrorData {
 
 export const TYPE_PING = 'ping';
 export const TYPE_STATUS = 'status';
+export const TYPE_SEARCH = 'search';
 export const STATUS_OK = 'ok';
 export const STATUS_ERROR = 'error';
+
+export interface SearchPayload {
+  query: string;
+  limit: number;
+  file?: string;
+  since?: string;
+  developer?: string;
+}
+
+export interface SearchResultItem {
+  id: string;
+  file: string;
+  type: string;
+  branch: string;
+  developer: string;
+  timestamp: string;
+  what: string;
+  why: string;
+  impact?: string;
+  score: number;
+  search_mode: string;
+}
+
+export interface SearchData {
+  results: SearchResultItem[];
+  count: number;
+  search_mode: string;
+  query: string;
+}
 
 export interface StatusPayload {}
 
@@ -59,6 +89,12 @@ export function parseStatusData(
   resp: SynthResponse
 ): StatusData {
   return resp.data as StatusData;
+}
+
+export function parseSearchData(
+  resp: SynthResponse
+): SearchData {
+  return resp.data as SearchData;
 }
 
 export function parseErrorData(resp: SynthResponse): ErrorData {
