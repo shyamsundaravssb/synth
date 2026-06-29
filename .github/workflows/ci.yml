@@ -74,12 +74,12 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: amd64
-            cgo_enabled: 0
+            cgo_enabled: 1
             cc: ""
           - os: macos-latest
             goos: darwin
             goarch: arm64
-            cgo_enabled: 0
+            cgo_enabled: 1
             cc: ""
     steps:
       - name: Checkout code
@@ -103,4 +103,6 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: ${{ matrix.cgo_enabled }}
           CC: ${{ matrix.cc }}
+          CGO_CFLAGS: "-DSQLITE_ENABLE_FTS5"
+          CGO_LDFLAGS: "-lm"
         run: go build -trimpath -o /dev/null ./cmd/synth
