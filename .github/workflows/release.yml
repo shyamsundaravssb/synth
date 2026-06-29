@@ -3,14 +3,34 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 permissions:
   contents: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  build:
+    name: Build Native Binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cc: gcc
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cc: aarch64-linux-gnu-gcc
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            cc: ""
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            cc: ""
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,17 +40,74 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version: '1.26'
           cache: true
 
-      - name: Run tests
+      - name: Install ARM64 cross-compiler (Linux)
+        if: matrix.goarch == 'arm64' && matrix.goos == 'linux'
         run: |
-          CGO_ENABLED=1 go test ./... -v -count=1
+          sudo apt-get update -q
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
-        with:
-          version: latest
-          args: release --clean
+      - name: Build Binary
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          CC: ${{ matrix.cc }}
+          CGO_CFLAGS: "-DSQLITE_ENABLE_FTS5"
+          CGO_LDFLAGS: "-lm"
+        run: |
+          go build -trimpath -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o synth ./cmd/synth
+
+      - name: Package Archive
+        run: |
+          files_to_pack="synth"
+          if [ -f README.md ]; then files_to_pack="$files_to_pack README.md"; fi
+          if [ -f LICENSE ]; then files_to_pack="$files_to_pack LICENSE"; fi
+          ARCHIVE_NAME="synth_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+          tar -czf $ARCHIVE_NAME $files_to_pack
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ${{ env.ARCHIVE_NAME }}
+
+  publish:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate Checksums
+        run: |
+          cd artifacts
+          sha256sum synth_*.tar.gz > checksums.txt
+
+      - name: Determine Prerelease Status
+        id: prerelease
+        run: |
+          if [[ "${{ github.ref_name }}" == *"-test"* ]] || [[ "${{ github.ref_name }}" == *"-rc"* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/synth_*.tar.gz
+            artifacts/checksums.txt
+          prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+          generate_release_notes: true
