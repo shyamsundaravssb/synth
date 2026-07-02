@@ -17,6 +17,11 @@ REPO="shyamsundaravssb/synth"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="synth"
 
+TAG="${SYNTH_VERSION:-}"
+# If SYNTH_VERSION env var is set, installs
+# that specific version. Otherwise installs
+# the latest stable release.
+
 # Detect OS
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 case "$OS" in
@@ -57,10 +62,21 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 echo "Downloading $ARCHIVE..."
-gh release download --repo "$REPO" \
-  --pattern "$ARCHIVE" \
-  --pattern "checksums.txt" \
-  --dir "$TMPDIR"
+# Note: downloads latest STABLE release only.
+# Pre-release tags (-test, -rc) are excluded.
+# To install a specific version:
+#   SYNTH_VERSION=v0.1.0 bash install.sh
+if [ -n "$TAG" ]; then
+  gh release download "$TAG" --repo "$REPO" \
+    --pattern "$ARCHIVE" \
+    --pattern "checksums.txt" \
+    --dir "$TMPDIR"
+else
+  gh release download --repo "$REPO" \
+    --pattern "$ARCHIVE" \
+    --pattern "checksums.txt" \
+    --dir "$TMPDIR"
+fi
 
 # Verify checksum
 echo "Verifying checksum..."
