@@ -1,59 +1,107 @@
 # Synth
 
-Intent-aware Git companion — capture why changes happen.
+The intent layer for Git. Capture *why* changes
+happen alongside *what* changed — then find
+anything instantly with natural language search.
 
 ## What It Does
-Synth sits on top of Git to capture developer intent. It tracks what changed, why it changed, and securely generates a semantic search index of your codebase history. A background daemon monitors for low-context files that need attention, keeping your team's knowledge fresh.
+
+Synth sits on top of Git and records developer
+intent: what changed, why it changed, and what
+else it might affect. Notes are stored locally,
+embedded into 384-dimension semantic vectors,
+and searchable in plain English.
+
+When you type `synth search "why did we remove
+email verification"`, Synth finds the relevant
+notes by meaning — not just keyword matching.
+When files accumulate uncommitted changes without
+any notes, Synth flags them so nothing goes
+undocumented.
+
+Everything runs locally. No account required.
+No data leaves your machine.
 
 ## Installation
 
 ### Homebrew (macOS and Linux)
-(note: tap not yet public — coming soon)
-```bash
-brew tap shyamsundaravssb/synth
-brew install synth
-```
 
-### Quick Install (Linux)
-(requires GitHub CLI authenticated to this private repo — update this section when repo goes public to use a simpler curl approach)
-```bash
-bash scripts/install.sh
-```
+  brew tap shyamsundaravssb/synth
+  brew install synth
 
-### From Source
-```bash
-go install github.com/shyamsundaravssb/synth/cmd/synth@latest
-```
+### Quick Install Script (Linux and macOS)
+
+  curl -fsSL https://raw.githubusercontent.com/\
+shyamsundaravssb/synth/main/scripts/install.sh \
+  | bash
+
+To install a specific version:
+
+  SYNTH_VERSION=v0.1.0 curl -fsSL \
+  https://raw.githubusercontent.com/\
+shyamsundaravssb/synth/main/scripts/install.sh \
+  | bash
+
+### From Source (requires Go 1.26+)
+
+  go install \
+  github.com/shyamsundaravssb/synth/cmd/synth@latest
 
 ## Getting Started
 
-```bash
-# Initialize Synth in your Git repo
-synth init
+  # 1. Initialize in any Git repository
+  cd your-project
+  synth init
 
-# Download the semantic search embedding model (one-time, ~87MB)
-synth model download
+  # 2. Download the embedding model (one-time, ~87MB)
+  #    Required for semantic search
+  synth model download
 
-# Start the background daemon
-synth daemon start
+  # 3. Start the background daemon
+  synth daemon start
 
-# Capture a note about a file change
-synth note
+  # 4. Capture intent when you make a change
+  synth note
 
-# Search intent notes semantically
-synth search
-```
+  # 5. Search by meaning, not just keywords
+  synth search "why did we remove rate limiting"
+
+  # 6. See what needs documentation
+  synth status --low-context
 
 ## Requirements
+
 - Git
 - Go 1.26+ (only if installing from source)
-- For semantic search: `synth model download` (one-time, ~87MB)
+- Linux (amd64, arm64) or macOS (amd64, arm64)
+- For semantic search: run `synth model download`
+  once after installation (~87MB, one-time)
 
 ## VS Code Extension
-A local `.vsix` extension exists in `plugins/vscode/`. You can load it by opening the extension folder in VS Code and pressing F5 to launch the Extension Development Host.
-Note: it's not yet published to the VS Code Marketplace.
+
+A VS Code extension is included in `plugins/vscode/`
+providing a live status bar, daemon health indicator,
+and in-editor semantic search.
+
+To load it locally:
+  1. Open `plugins/vscode/` in VS Code
+  2. Press F5 to launch the Extension
+     Development Host
+  3. Run "Synth: Search Intent Notes" from
+     the Command Palette (Ctrl+Alt+S)
+
+The extension is not yet published to the
+VS Code Marketplace.
 
 ## Known Limitations
-- macOS launchd service install (`synth daemon install-service`) untested on real Mac hardware
-- VS Code extension not yet published to Marketplace
-- Homebrew tap not yet public
+
+- macOS `synth daemon install-service` (launchd
+  auto-start) has not been verified on physical
+  Mac hardware
+- VS Code extension is not yet published to
+  the Marketplace
+- Windows is not supported
+
+## License
+
+MIT — see [LICENSE](LICENSE)
