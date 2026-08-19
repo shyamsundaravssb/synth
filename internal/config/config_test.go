@@ -434,7 +434,7 @@ func TestSaveProjectConfig_WritesCorrectDefaultThreshold(t *testing.T) {
 
 	cfg := DefaultProjectConfig()
 	cfg.Project.ID = "test-init-001"
-	
+
 	if err := SaveProjectConfig(root, cfg); err != nil {
 		t.Fatalf("SaveProjectConfig() error = %v", err)
 	}

@@ -11,15 +11,15 @@ import (
 
 type noopLogger struct{}
 
-func (n *noopLogger) Info(msg string)           {}
-func (n *noopLogger) Warn(msg string)           {}
-func (n *noopLogger) Error(msg, e string)       {}
+func (n *noopLogger) Info(msg string)     {}
+func (n *noopLogger) Warn(msg string)     {}
+func (n *noopLogger) Error(msg, e string) {}
 
 func setupServer(t *testing.T) (*Server, string, chan struct{}) {
 	sockPath := filepath.Join(t.TempDir(), "test.sock")
 	shutdownCh := make(chan struct{})
 	server := NewServer(sockPath, shutdownCh, &noopLogger{})
-	
+
 	err := server.Start()
 	if err != nil {
 		t.Fatalf("failed to start server: %v", err)
@@ -30,7 +30,7 @@ func setupServer(t *testing.T) (*Server, string, chan struct{}) {
 		close(shutdownCh)
 		time.Sleep(50 * time.Millisecond)
 	})
-	
+
 	return server, sockPath, shutdownCh
 }
 
@@ -72,7 +72,7 @@ func TestServerClient_StatusHandler(t *testing.T) {
 
 	client := NewClient(sockPath)
 	req, _ := NewRequest(TypeStatus, StatusPayload{})
-	
+
 	resp, err := client.Send(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -100,13 +100,12 @@ func TestServerClient_StatusHandler(t *testing.T) {
 	}
 }
 
-
 func TestServerClient_UnknownType(t *testing.T) {
 	_, sockPath, _ := setupServer(t)
 
 	client := NewClient(sockPath)
 	req, _ := NewRequest("unknown_type", PingPayload{})
-	
+
 	resp, err := client.Send(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -200,7 +199,7 @@ func TestServerClient_Timeout(t *testing.T) {
 
 func TestClient_DaemonNotRunning(t *testing.T) {
 	client := NewClient(filepath.Join(t.TempDir(), "nonexistent.sock"))
-	
+
 	if client.IsDaemonReachable() {
 		t.Errorf("expected IsDaemonReachable to be false")
 	}

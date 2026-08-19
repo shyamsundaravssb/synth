@@ -73,16 +73,16 @@ type LowContextFileItem struct {
 }
 
 type StatusData struct {
-	Running         bool   `json:"running"`
-	PID             int    `json:"pid"`
-	UptimeS         int64  `json:"uptime_seconds"`
+	Running         bool                 `json:"running"`
+	PID             int                  `json:"pid"`
+	UptimeS         int64                `json:"uptime_seconds"`
 	NotesCount      int                  `json:"notes_count"`
 	FileSavesCount  int                  `json:"file_saves_count"`
 	EmbeddingsCount int                  `json:"embeddings_count"`
 	LowContextCount int                  `json:"low_context_count"`
 	LowContextFiles []LowContextFileItem `json:"low_context_files"`
 	LogFile         string               `json:"log_file"`
-	SockFile        string `json:"socket_file"`
+	SockFile        string               `json:"socket_file"`
 }
 
 type ErrorData struct {

@@ -13,9 +13,9 @@ import (
 // Used in all tests that do not need to observe log calls.
 type noopLogger struct{}
 
-func (n *noopLogger) Info(msg string)         {}
-func (n *noopLogger) Warn(msg string)         {}
-func (n *noopLogger) Error(msg, e string)     {}
+func (n *noopLogger) Info(msg string)     {}
+func (n *noopLogger) Warn(msg string)     {}
+func (n *noopLogger) Error(msg, e string) {}
 
 // ─── Unit tests (no build tag — always run) ───────────────────────────────────
 

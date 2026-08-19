@@ -188,7 +188,7 @@ and low context files.`,
 			return runStatus(lowContextFlag, jsonFlag)
 		},
 	}
-	
+
 	cmd.Flags().BoolVar(&lowContextFlag, "low-context", false, "show only low context files")
 	cmd.Flags().BoolVar(&jsonFlag, "json", false, "output as JSON")
 	return cmd
@@ -250,10 +250,10 @@ func runStatus(lowContext bool, asJSON bool) error {
 		} else {
 			threshold := cfg.Behavior.LowContextThreshold
 			files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
-			
+
 			counts, _ := synthStore.GetSaveCountsSinceLastNote(ctx, cfg.Project.ID)
 			times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
-			
+
 			var items []ipc.LowContextFileItem
 			for _, f := range files {
 				saveCount := counts[f]
@@ -282,10 +282,10 @@ func runStatus(lowContext bool, asJSON bool) error {
 	} else {
 		threshold := cfg.Behavior.LowContextThreshold
 		files, _ := synthStore.GetLowContextFiles(ctx, cfg.Project.ID, threshold)
-		
+
 		counts, _ := synthStore.GetSaveCountsSinceLastNote(ctx, cfg.Project.ID)
 		times, _ := synthStore.GetLastNoteTimePerFile(ctx, cfg.Project.ID)
-		
+
 		for _, f := range files {
 			saveCount := counts[f]
 			lastTime, hasNote := times[f]

@@ -431,9 +431,9 @@ func TestSanitizeFTSQuery_RemovesSpecialChars(t *testing.T) {
 
 	for _, tc := range cases {
 		got := sanitizeFTSQuery(tc.input)
-		// The prompt mentioned "hello  AND world" (double space) but that only happens if we replaced with space. 
+		// The prompt mentioned "hello  AND world" (double space) but that only happens if we replaced with space.
 		// Since we remove chars, it's just "hello AND world". We test what our logic correctly does.
-		if got != tc.want && got != "hello  AND world" { 
+		if got != tc.want && got != "hello  AND world" {
 			// Check if it's acceptable
 			if got != tc.want {
 				t.Errorf("sanitizeFTSQuery(%q) = %q, want %q", tc.input, got, tc.want)

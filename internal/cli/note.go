@@ -395,7 +395,7 @@ func sortFilesByLowContext(
 		if saveCounts != nil {
 			count = saveCounts[f]
 		}
-		
+
 		if count >= threshold {
 			lastNote, hasNote := lastNoteTimes[f]
 			var noteStatus string

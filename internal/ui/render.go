@@ -260,7 +260,7 @@ func RenderLowContextFiles(files []ipc.LowContextFileItem, projectName string, j
 	for _, f := range files {
 		fmt.Printf("  %s%s%s\n", ansiBold+ansiWhite, f.FilePath, ansiReset)
 		fmt.Printf("  %s· %d saves without a note%s\n", ansiDim, f.SaveCount, ansiReset)
-		
+
 		if !f.HasEverBeenNoted {
 			fmt.Printf("  %s· never noted%s\n", ansiYellow, ansiReset)
 		} else {
@@ -377,7 +377,7 @@ func RenderSearchResults(results []search.SearchResult, response *search.SearchR
 		typeColor := intentTypeColor(types.IntentType(res.Type))
 		relTime := RelativeTime(res.Timestamp)
 
-		// File path and score on the right. 54 is the divider width. 2 is left indent. 
+		// File path and score on the right. 54 is the divider width. 2 is left indent.
 		// "  src/auth.go" has len 2 + len(res.FilePath).
 		padLen := 54 - len(res.FilePath) - len(scoreStr)
 		if padLen < 1 {
@@ -469,7 +469,7 @@ func RenderSearchResultsJSON(response *search.SearchResponse) error {
 		if response.Mode == search.ModeFTS5 {
 			scorePct = 0
 		}
-		
+
 		out.Results[i] = searchResultJSON{
 			ID:         res.ID,
 			File:       res.FilePath,

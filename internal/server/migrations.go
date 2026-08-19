@@ -21,7 +21,7 @@ func RunMigrations(ctx context.Context, pool *pgxpool.Pool, migrationsDir embed.
 		version TEXT UNIQUE NOT NULL,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	);`
-	
+
 	if _, err := pool.Exec(ctx, createTableQuery); err != nil {
 		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}

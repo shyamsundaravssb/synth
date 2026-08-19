@@ -20,9 +20,9 @@ type EmbedEngine interface {
 }
 
 type Embedder struct {
-	store      store.Store
-	engine     EmbedEngine
-	projectID  string
+	store           store.Store
+	engine          EmbedEngine
+	projectID       string
 	log             *Logger
 	shutdownCh      <-chan struct{}
 	modelWarnLogged bool

@@ -106,22 +106,22 @@ func IsDaemonRunning(pidFile string) (bool, int, error) {
 }
 
 type Daemon struct {
-	PIDFile      string
-	SockFile     string
-	LogFile      string
-	shutdownCh   chan struct{}
-	done         chan struct{}
-	shutdownOnce sync.Once
-	log          *Logger
-	ipcServer    *ipc.Server
-	watcher      *Watcher
+	PIDFile          string
+	SockFile         string
+	LogFile          string
+	shutdownCh       chan struct{}
+	done             chan struct{}
+	shutdownOnce     sync.Once
+	log              *Logger
+	ipcServer        *ipc.Server
+	watcher          *Watcher
 	embedder         *Embedder
 	searchHandler    *SearchHandler
 	lowContextScorer *LowContextScorer
 	lowContextLoop   *LowContextLoop
 	startTime        time.Time
-	synthStore    store.Store
-	projectID     string
+	synthStore       store.Store
+	projectID        string
 }
 
 func New() *Daemon {

@@ -14,10 +14,10 @@ import (
 
 type noopLogger struct{}
 
-func (n *noopLogger) Info(msg string)           {}
-func (n *noopLogger) Warn(msg string)           {}
-func (n *noopLogger) Error(msg, e string)       {}
-func (n *noopLogger) InfoFile(msg, f string)    {}
+func (n *noopLogger) Info(msg string)        {}
+func (n *noopLogger) Warn(msg string)        {}
+func (n *noopLogger) Error(msg, e string)    {}
+func (n *noopLogger) InfoFile(msg, f string) {}
 
 func setupWatcher(t *testing.T) (*Watcher, string, *sql.DB, chan struct{}) {
 	gitRoot := t.TempDir()

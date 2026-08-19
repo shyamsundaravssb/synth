@@ -15,7 +15,7 @@ func LoadConfig() (*Config, error) {
 	if port == "" {
 		port = "8080"
 	}
-	
+
 	return &Config{
 		DatabaseURL: dbURL,
 		Port:        port,

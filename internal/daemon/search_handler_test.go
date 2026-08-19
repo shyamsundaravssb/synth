@@ -186,7 +186,7 @@ func TestSearchHandler_AppliesFileFilter(t *testing.T) {
 
 	vec1 := make([]float32, 384)
 	vec1[0] = 1.0
-	
+
 	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i1", ProjectID: "proj_123", Embedding: vec1, Model: "test"})
 	_ = s.InsertEmbedding(ctx, store.EmbeddingRecord{IntentID: "i2", ProjectID: "proj_123", Embedding: vec1, Model: "test"})
 
