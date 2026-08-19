@@ -1,3 +1,4 @@
 .synth/
 /bin/
 synth-server
+.env
